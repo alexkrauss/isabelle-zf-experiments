@@ -5,7 +5,7 @@
 
 section\<open>Ordered Pairs\<close>
 
-theory pair imports upair
+theory Ordered_Pair imports Unordered_Pair
 begin
 
 ML_file "simpdata.ML"

@@ -11,7 +11,7 @@ Observe the order of dependence:
 
 section\<open>Unordered Pairs\<close>
 
-theory upair
+theory Unordered_Pair
 imports Set_Theory
 keywords "print_tcset" :: diag
 begin
