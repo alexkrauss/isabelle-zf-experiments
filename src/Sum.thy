@@ -5,7 +5,7 @@
 
 section\<open>Disjoint Sums\<close>
 
-theory Sum imports Bool equalities begin
+theory Sum imports Bool Equalities begin
 
 text\<open>And the "Part" primitive for simultaneous recursive type definitions\<close>
 
@@ -19,33 +19,33 @@ definition Inr :: "i=>i" where
      "Inr(b) == <1,b>"
 
 definition "case" :: "[i=>i, i=>i, i]=>i" where
-     "case(c,d) == (%<y,z>. cond(y, d(z), c(z)))"
+     "case c d == (%<y,z>. cond y (d z) (c z))"
 
   (*operator for selecting out the various summands*)
 definition Part :: "[i,i=>i] => i" where
-     "Part(A,h) == {x \<in> A. \<exists>z. x = h(z)}"
+     "Part A h == {x \<in> A. \<exists>z. x = h z}"
 
 subsection\<open>Rules for the @{term Part} Primitive\<close>
 
 lemma Part_iff:
-    "a \<in> Part(A,h) \<longleftrightarrow> a \<in> A & (\<exists>y. a=h(y))"
+    "a \<in> Part A h \<longleftrightarrow> a \<in> A & (\<exists>y. a=h(y))"
 apply (unfold Part_def)
 apply (rule separation)
 done
 
 lemma Part_eqI [intro]:
-    "[| a \<in> A;  a=h(b) |] ==> a \<in> Part(A,h)"
+    "[| a \<in> A;  a=h(b) |] ==> a \<in> Part A h"
 by (unfold Part_def, blast)
 
 lemmas PartI = refl [THEN [2] Part_eqI]
 
 lemma PartE [elim!]:
-    "[| a \<in> Part(A,h);  !!z. [| a \<in> A;  a=h(z) |] ==> P
+    "[| a \<in> Part A h;  !!z. [| a \<in> A;  a=h(z) |] ==> P
      |] ==> P"
 apply (unfold Part_def, blast)
 done
 
-lemma Part_subset: "Part(A,h) \<subseteq> A"
+lemma Part_subset: "Part A h \<subseteq> A"
 apply (unfold Part_def)
 apply (rule Collect_subset)
 done
@@ -55,7 +55,7 @@ subsection\<open>Rules for Disjoint Sums\<close>
 
 lemmas sum_defs = sum_def Inl_def Inr_def case_def
 
-lemma Sigma_bool: "Sigma(bool,C) = C(0) + C(1)"
+lemma Sigma_bool: "Sigma bool C = C(0) + C(1)"
 by (unfold bool_def sum_def, blast)
 
 (** Introduction rules for the injections **)
@@ -127,21 +127,21 @@ by (simp add: sum_def, blast)
 
 subsection\<open>The Eliminator: @{term case}\<close>
 
-lemma case_Inl [simp]: "case(c, d, Inl(a)) = c(a)"
+lemma case_Inl [simp]: "case c d (Inl a) = c(a)"
 by (simp add: sum_defs)
 
-lemma case_Inr [simp]: "case(c, d, Inr(b)) = d(b)"
+lemma case_Inr [simp]: "case c d (Inr b) = d(b)"
 by (simp add: sum_defs)
 
 lemma case_type [TC]:
     "[| u \<in> A+B;
         !!x. x \<in> A ==> c(x): C(Inl(x));
         !!y. y \<in> B ==> d(y): C(Inr(y))
-     |] ==> case(c,d,u) \<in> C(u)"
+     |] ==> case c d u \<in> C(u)"
 by auto
 
 lemma expand_case: "u \<in> A+B ==>
-        R(case(c,d,u)) \<longleftrightarrow>
+        R(case c d u) \<longleftrightarrow>
         ((\<forall>x\<in>A. u = Inl(x) \<longrightarrow> R(c(x))) &
         (\<forall>y\<in>B. u = Inr(y) \<longrightarrow> R(d(y))))"
 by auto
@@ -150,42 +150,42 @@ lemma case_cong:
   "[| z \<in> A+B;
       !!x. x \<in> A ==> c(x)=c'(x);
       !!y. y \<in> B ==> d(y)=d'(y)
-   |] ==> case(c,d,z) = case(c',d',z)"
+   |] ==> case c d z = case c' d' z"
 by auto
 
 lemma case_case: "z \<in> A+B ==>
-        case(c, d, case(%x. Inl(c'(x)), %y. Inr(d'(y)), z)) =
-        case(%x. c(c'(x)), %y. d(d'(y)), z)"
+        case c d (case (%x. Inl(c'(x))) (%y. Inr(d'(y))) z) =
+        case (%x. c(c'(x))) (%y. d(d'(y))) z"
 by auto
 
 
-subsection\<open>More Rules for @{term "Part(A,h)"}\<close>
+subsection\<open>More Rules for @{term "Part A h"}\<close>
 
-lemma Part_mono: "A<=B ==> Part(A,h)<=Part(B,h)"
+lemma Part_mono: "A<=B ==> Part A h <= Part B h"
 by blast
 
-lemma Part_Collect: "Part(Collect(A,P), h) = Collect(Part(A,h), P)"
+lemma Part_Collect: "Part (Collect A P) h = Collect (Part A h) P"
 by blast
 
 lemmas Part_CollectE =
      Part_Collect [THEN equalityD1, THEN subsetD, THEN CollectE]
 
-lemma Part_Inl: "Part(A+B,Inl) = {Inl(x). x \<in> A}"
+lemma Part_Inl: "Part (A+B) Inl = {Inl(x). x \<in> A}"
 by blast
 
-lemma Part_Inr: "Part(A+B,Inr) = {Inr(y). y \<in> B}"
+lemma Part_Inr: "Part (A+B) Inr = {Inr(y). y \<in> B}"
 by blast
 
-lemma PartD1: "a \<in> Part(A,h) ==> a \<in> A"
+lemma PartD1: "a \<in> Part A h ==> a \<in> A"
 by (simp add: Part_def)
 
-lemma Part_id: "Part(A,%x. x) = A"
+lemma Part_id: "Part A (%x. x) = A"
 by blast
 
-lemma Part_Inr2: "Part(A+B, %x. Inr(h(x))) = {Inr(y). y \<in> Part(B,h)}"
+lemma Part_Inr2: "Part (A+B) (%x. Inr(h(x))) = {Inr(y). y \<in> Part B h}"
 by blast
 
-lemma Part_sum_equality: "C \<subseteq> A+B ==> Part(C,Inl) \<union> Part(C,Inr) = C"
+lemma Part_sum_equality: "C \<subseteq> A+B ==> Part C Inl \<union> Part C Inr = C"
 by blast
 
 end
