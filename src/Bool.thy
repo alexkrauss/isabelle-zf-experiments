@@ -5,7 +5,7 @@
 
 section\<open>Booleans in Zermelo-Fraenkel Set Theory\<close>
 
-theory Bool imports pair begin
+theory Bool imports Ordered_Pair begin
 
 abbreviation
   one  ("1") where
@@ -19,21 +19,21 @@ text\<open>2 is equal to bool, but is used as a number rather than a type.\<clos
 
 definition "bool == {0,1}"
 
-definition "cond(b,c,d) == if(b=1,c,d)"
+definition "cond b c d == if (b=1) then c else d"
 
-definition "not(b) == cond(b,0,1)"
+definition "not b == cond b 0 1"
 
 definition
   "and"       :: "[i,i]=>i"      (infixl "and" 70)  where
-    "a and b == cond(a,b,0)"
+    "a and b == cond a b 0"
 
 definition
   or          :: "[i,i]=>i"      (infixl "or" 65)  where
-    "a or b == cond(a,1,b)"
+    "a or b == cond a 1 b"
 
 definition
   xor         :: "[i,i]=>i"      (infixl "xor" 65) where
-    "a xor b == cond(a,not(b),b)"
+    "a xor b == cond a (not b) b"
 
 
 lemmas bool_defs = bool_def cond_def
@@ -62,24 +62,24 @@ by (simp add: bool_defs, blast)
 (** cond **)
 
 (*1 means true*)
-lemma cond_1 [simp]: "cond(1,c,d) = c"
+lemma cond_1 [simp]: "cond 1 c d = c"
 by (simp add: bool_defs )
 
 (*0 means false*)
-lemma cond_0 [simp]: "cond(0,c,d) = d"
+lemma cond_0 [simp]: "cond 0 c d = d"
 by (simp add: bool_defs )
 
-lemma cond_type [TC]: "[| b: bool;  c: A(1);  d: A(0) |] ==> cond(b,c,d): A(b)"
+lemma cond_type [TC]: "[| b: bool;  c: A(1);  d: A(0) |] ==> cond b c d: A b"
 by (simp add: bool_defs, blast)
 
 (*For Simp_tac and Blast_tac*)
-lemma cond_simple_type: "[| b: bool;  c: A;  d: A |] ==> cond(b,c,d): A"
+lemma cond_simple_type: "[| b: bool;  c: A;  d: A |] ==> cond b c d : A"
 by (simp add: bool_defs )
 
-lemma def_cond_1: "[| !!b. j(b)==cond(b,c,d) |] ==> j(1) = c"
+lemma def_cond_1: "[| !!b. j(b)==cond b c d |] ==> j 1 = c"
 by simp
 
-lemma def_cond_0: "[| !!b. j(b)==cond(b,c,d) |] ==> j(0) = d"
+lemma def_cond_0: "[| !!b. j b == cond b c d |] ==> j 0 = d"
 by simp
 
 lemmas not_1 = not_def [THEN def_cond_1, simp]
