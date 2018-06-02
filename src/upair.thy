@@ -12,7 +12,7 @@ Observe the order of dependence:
 section\<open>Unordered Pairs\<close>
 
 theory upair
-imports ZF_Base
+imports Set_Theory
 keywords "print_tcset" :: diag
 begin
 
@@ -25,16 +25,16 @@ by (simp add: Ball_def atomize_all atomize_imp)
 
 subsection\<open>Unordered Pairs: constant @{term Upair}\<close>
 
-lemma Upair_iff [simp]: "c \<in> Upair(a,b) \<longleftrightarrow> (c=a | c=b)"
+lemma Upair_iff [simp]: "c \<in> Upair a b \<longleftrightarrow> (c=a | c=b)"
 by (unfold Upair_def, blast)
 
-lemma UpairI1: "a \<in> Upair(a,b)"
+lemma UpairI1: "a \<in> Upair a b"
 by simp
 
-lemma UpairI2: "b \<in> Upair(a,b)"
+lemma UpairI2: "b \<in> Upair a b"
 by simp
 
-lemma UpairE: "[| a \<in> Upair(b,c);  a=b ==> P;  a=c ==> P |] ==> P"
+lemma UpairE: "[| a \<in> Upair b c;  a=b ==> P;  a=c ==> P |] ==> P"
 by (simp, blast)
 
 subsection\<open>Rules for Binary Union, Defined via @{term Upair}\<close>
@@ -103,33 +103,33 @@ by simp
 
 subsection\<open>Rules for @{term cons}\<close>
 
-lemma cons_iff [simp]: "a \<in> cons(b,A) \<longleftrightarrow> (a=b | a \<in> A)"
+lemma cons_iff [simp]: "a \<in> cons b A \<longleftrightarrow> (a=b | a \<in> A)"
 apply (unfold cons_def)
 apply (blast intro: UpairI1 UpairI2 elim: UpairE)
 done
 
 (*risky as a typechecking rule, but solves otherwise unconstrained goals of
 the form x \<in> ?A*)
-lemma consI1 [simp,TC]: "a \<in> cons(a,B)"
+lemma consI1 [simp,TC]: "a \<in> cons a B"
 by simp
 
 
-lemma consI2: "a \<in> B ==> a \<in> cons(b,B)"
+lemma consI2: "a \<in> B ==> a \<in> cons b B"
 by simp
 
-lemma consE [elim!]: "[| a \<in> cons(b,A);  a=b ==> P;  a \<in> A ==> P |] ==> P"
+lemma consE [elim!]: "[| a \<in> cons b A;  a=b ==> P;  a \<in> A ==> P |] ==> P"
 by (simp, blast)
 
 (*Stronger version of the rule above*)
 lemma consE':
-    "[| a \<in> cons(b,A);  a=b ==> P;  [| a \<in> A;  a\<noteq>b |] ==> P |] ==> P"
+    "[| a \<in> cons b A;  a=b ==> P;  [| a \<in> A;  a\<noteq>b |] ==> P |] ==> P"
 by (simp, blast)
 
 (*Classical introduction rule*)
-lemma consCI [intro!]: "(a\<notin>B ==> a=b) ==> a \<in> cons(b,B)"
+lemma consCI [intro!]: "(a\<notin>B ==> a=b) ==> a \<in> cons b B"
 by (simp, blast)
 
-lemma cons_not_0 [simp]: "cons(a,B) \<noteq> 0"
+lemma cons_not_0 [simp]: "cons a B \<noteq> 0"
 by (blast elim: equalityE)
 
 lemmas cons_neq_0 = cons_not_0 [THEN notE]
@@ -329,10 +329,10 @@ lemma ball_simps1:
      "(\<forall>x\<in>A. P(x) \<longrightarrow> Q) \<longleftrightarrow> ((\<exists>x\<in>A. P(x)) \<longrightarrow> Q)"
      "(~(\<forall>x\<in>A. P(x))) \<longleftrightarrow> (\<exists>x\<in>A. ~P(x))"
      "(\<forall>x\<in>0.P(x)) \<longleftrightarrow> True"
-     "(\<forall>x\<in>succ(i).P(x)) \<longleftrightarrow> P(i) & (\<forall>x\<in>i. P(x))"
-     "(\<forall>x\<in>cons(a,B).P(x)) \<longleftrightarrow> P(a) & (\<forall>x\<in>B. P(x))"
-     "(\<forall>x\<in>RepFun(A,f). P(x)) \<longleftrightarrow> (\<forall>y\<in>A. P(f(y)))"
-     "(\<forall>x\<in>\<Union>(A).P(x)) \<longleftrightarrow> (\<forall>y\<in>A. \<forall>x\<in>y. P(x))"
+     "(\<forall>x\<in>succ i. P(x)) \<longleftrightarrow> P(i) & (\<forall>x\<in>i. P x)"
+     "(\<forall>x\<in>cons a B. P(x)) \<longleftrightarrow> P(a) & (\<forall>x\<in>B. P x)"
+     "(\<forall>x\<in>RepFun A f. P(x)) \<longleftrightarrow> (\<forall>y\<in>A. P (f y))"
+     "(\<forall>x\<in>\<Union>(A).P x) \<longleftrightarrow> (\<forall>y\<in>A. \<forall>x\<in>y. P x)"
 by blast+
 
 lemma ball_simps2:
@@ -342,7 +342,7 @@ lemma ball_simps2:
 by blast+
 
 lemma ball_simps3:
-     "(\<forall>x\<in>Collect(A,Q).P(x)) \<longleftrightarrow> (\<forall>x\<in>A. Q(x) \<longrightarrow> P(x))"
+     "(\<forall>x\<in>Collect A Q. P(x)) \<longleftrightarrow> (\<forall>x\<in>A. Q(x) \<longrightarrow> P(x))"
 by blast+
 
 lemmas ball_simps [simp] = ball_simps1 ball_simps2 ball_simps3
@@ -360,8 +360,8 @@ lemma bex_simps1:
      "(\<exists>x\<in>A. P(x) \<longrightarrow> Q) \<longleftrightarrow> ((\<forall>x\<in>A. P(x)) \<longrightarrow> (A\<noteq>0 & Q))"
      "(\<exists>x\<in>0.P(x)) \<longleftrightarrow> False"
      "(\<exists>x\<in>succ(i).P(x)) \<longleftrightarrow> P(i) | (\<exists>x\<in>i. P(x))"
-     "(\<exists>x\<in>cons(a,B).P(x)) \<longleftrightarrow> P(a) | (\<exists>x\<in>B. P(x))"
-     "(\<exists>x\<in>RepFun(A,f). P(x)) \<longleftrightarrow> (\<exists>y\<in>A. P(f(y)))"
+     "(\<exists>x\<in>cons a B. P(x)) \<longleftrightarrow> P(a) | (\<exists>x\<in>B. P(x))"
+     "(\<exists>x\<in>RepFun A f. P(x)) \<longleftrightarrow> (\<exists>y\<in>A. P(f(y)))"
      "(\<exists>x\<in>\<Union>(A).P(x)) \<longleftrightarrow> (\<exists>y\<in>A. \<exists>x\<in>y.  P(x))"
      "(~(\<exists>x\<in>A. P(x))) \<longleftrightarrow> (\<forall>x\<in>A. ~P(x))"
 by blast+
@@ -373,7 +373,7 @@ lemma bex_simps2:
 by blast+
 
 lemma bex_simps3:
-     "(\<exists>x\<in>Collect(A,Q).P(x)) \<longleftrightarrow> (\<exists>x\<in>A. Q(x) & P(x))"
+     "(\<exists>x\<in>Collect A Q. P(x)) \<longleftrightarrow> (\<exists>x\<in>A. Q(x) & P(x))"
 by blast
 
 lemmas bex_simps [simp] = bex_simps1 bex_simps2 bex_simps3
@@ -408,19 +408,19 @@ subsection\<open>Miniscoping of the Replacement Operator\<close>
 
 text\<open>These cover both @{term Replace} and @{term Collect}\<close>
 lemma Rep_simps [simp]:
-     "{x. y \<in> 0, R(x,y)} = 0"
+     "{x. y \<in> 0, R x y} = 0"
      "{x \<in> 0. P(x)} = 0"
      "{x \<in> A. Q} = (if Q then A else 0)"
-     "RepFun(0,f) = 0"
-     "RepFun(succ(i),f) = cons(f(i), RepFun(i,f))"
-     "RepFun(cons(a,B),f) = cons(f(a), RepFun(B,f))"
+     "RepFun 0 f = 0"
+     "RepFun (succ i) f = cons (f i) (RepFun i f)"
+     "RepFun (cons a B) f = cons (f a) (RepFun B f)"
 by (simp_all, blast+)
 
 
 subsection\<open>Miniscoping of Unions\<close>
 
 lemma UN_simps1:
-     "(\<Union>x\<in>C. cons(a, B(x))) = (if C=0 then 0 else cons(a, \<Union>x\<in>C. B(x)))"
+     "(\<Union>x\<in>C. cons a (B x)) = (if C=0 then 0 else cons a (\<Union>x\<in>C. B(x)))"
      "(\<Union>x\<in>C. A(x) \<union> B')   = (if C=0 then 0 else (\<Union>x\<in>C. A(x)) \<union> B')"
      "(\<Union>x\<in>C. A' \<union> B(x))   = (if C=0 then 0 else A' \<union> (\<Union>x\<in>C. B(x)))"
      "(\<Union>x\<in>C. A(x) \<inter> B')  = ((\<Union>x\<in>C. A(x)) \<inter> B')"
@@ -434,7 +434,7 @@ done
 lemma UN_simps2:
       "(\<Union>x\<in>\<Union>(A). B(x)) = (\<Union>y\<in>A. \<Union>x\<in>y. B(x))"
       "(\<Union>z\<in>(\<Union>x\<in>A. B(x)). C(z)) = (\<Union>x\<in>A. \<Union>z\<in>B(x). C(z))"
-      "(\<Union>x\<in>RepFun(A,f). B(x))     = (\<Union>a\<in>A. B(f(a)))"
+      "(\<Union>x\<in>RepFun A f. B(x)) = (\<Union>a\<in>A. B(f(a)))"
 by blast+
 
 lemmas UN_simps [simp] = UN_simps1 UN_simps2
@@ -450,12 +450,12 @@ apply blast+
 done
 
 lemma UN_extend_simps2:
-     "cons(a, \<Union>x\<in>C. B(x)) = (if C=0 then {a} else (\<Union>x\<in>C. cons(a, B(x))))"
+     "cons a (\<Union>x\<in>C. B(x)) = (if C=0 then {a} else (\<Union>x\<in>C. cons a (B x)))"
      "A \<union> (\<Union>x\<in>C. B(x))   = (if C=0 then A else (\<Union>x\<in>C. A \<union> B(x)))"
      "(A \<inter> (\<Union>x\<in>C. B(x))) = (\<Union>x\<in>C. A \<inter> B(x))"
      "A - (\<Inter>x\<in>C. B(x))    = (if C=0 then A else (\<Union>x\<in>C. A - B(x)))"
      "(\<Union>y\<in>A. \<Union>x\<in>y. B(x)) = (\<Union>x\<in>\<Union>(A). B(x))"
-     "(\<Union>a\<in>A. B(f(a))) = (\<Union>x\<in>RepFun(A,f). B(x))"
+     "(\<Union>a\<in>A. B(f(a))) = (\<Union>x\<in>RepFun A f. B(x))"
 apply (simp_all add: Inter_def)
 apply (blast intro!: equalityI)+
 done
@@ -478,7 +478,7 @@ by (simp_all add: Inter_def, blast+)
 lemma INT_simps2:
      "(\<Inter>x\<in>C. A \<inter> B(x)) = A \<inter> (\<Inter>x\<in>C. B(x))"
      "(\<Inter>x\<in>C. A - B(x))   = (if C=0 then 0 else A - (\<Union>x\<in>C. B(x)))"
-     "(\<Inter>x\<in>C. cons(a, B(x))) = (if C=0 then 0 else cons(a, \<Inter>x\<in>C. B(x)))"
+     "(\<Inter>x\<in>C. cons a (B x)) = (if C=0 then 0 else cons a (\<Inter>x\<in>C. B(x)))"
      "(\<Inter>x\<in>C. A \<union> B(x))  = (if C=0 then 0 else A \<union> (\<Inter>x\<in>C. B(x)))"
 apply (simp_all add: Inter_def)
 apply (blast intro!: equalityI)+
@@ -499,7 +499,7 @@ done
 lemma INT_extend_simps2:
      "A \<inter> (\<Inter>x\<in>C. B(x)) = (\<Inter>x\<in>C. A \<inter> B(x))"
      "A - (\<Union>x\<in>C. B(x))   = (if C=0 then A else (\<Inter>x\<in>C. A - B(x)))"
-     "cons(a, \<Inter>x\<in>C. B(x)) = (if C=0 then {a} else (\<Inter>x\<in>C. cons(a, B(x))))"
+     "cons a (\<Inter>x\<in>C. B(x)) = (if C=0 then {a} else (\<Inter>x\<in>C. cons a (B x)))"
      "A \<union> (\<Inter>x\<in>C. B(x))  = (if C=0 then A else (\<Inter>x\<in>C. A \<union> B(x)))"
 apply (simp_all add: Inter_def)
 apply (blast intro!: equalityI)+
@@ -521,7 +521,7 @@ lemma misc_simps [simp]:
      "0 - A = 0"
      "A - 0 = A"
      "\<Union>(0) = 0"
-     "\<Union>(cons(b,A)) = b \<union> \<Union>(A)"
+     "\<Union>(cons b A) = b \<union> \<Union>(A)"
      "\<Inter>({b}) = b"
 by blast+
 

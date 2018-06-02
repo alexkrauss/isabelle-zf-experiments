@@ -81,10 +81,10 @@ subsection\<open>Sigma: Disjoint Union of a Family of Sets\<close>
 
 text\<open>Generalizes Cartesian product\<close>
 
-lemma Sigma_iff [simp]: "<a,b>: Sigma(A,B) \<longleftrightarrow> a \<in> A & b \<in> B(a)"
+lemma Sigma_iff [simp]: "<a,b>: Sigma A B \<longleftrightarrow> a \<in> A & b \<in> B(a)"
 by (simp add: Sigma_def)
 
-lemma SigmaI [TC,intro!]: "[| a \<in> A;  b \<in> B(a) |] ==> <a,b> \<in> Sigma(A,B)"
+lemma SigmaI [TC,intro!]: "[| a \<in> A;  b \<in> B(a) |] ==> <a,b> \<in> Sigma A B"
 by simp
 
 lemmas SigmaD1 = Sigma_iff [THEN iffD1, THEN conjunct1]
@@ -92,27 +92,27 @@ lemmas SigmaD2 = Sigma_iff [THEN iffD1, THEN conjunct2]
 
 (*The general elimination rule*)
 lemma SigmaE [elim!]:
-    "[| c \<in> Sigma(A,B);
+    "[| c \<in> Sigma A B;
         !!x y.[| x \<in> A;  y \<in> B(x);  c=<x,y> |] ==> P
      |] ==> P"
 by (unfold Sigma_def, blast)
 
 lemma SigmaE2 [elim!]:
-    "[| <a,b> \<in> Sigma(A,B);
+    "[| <a,b> \<in> Sigma A B;
         [| a \<in> A;  b \<in> B(a) |] ==> P
      |] ==> P"
 by (unfold Sigma_def, blast)
 
 lemma Sigma_cong:
     "[| A=A';  !!x. x \<in> A' ==> B(x)=B'(x) |] ==>
-     Sigma(A,B) = Sigma(A',B')"
+     Sigma A B = Sigma A' B'"
 by (simp add: Sigma_def)
 
 (*Sigma_cong, Pi_cong NOT given to Addcongs: they cause
   flex-flex pairs and the "Check your prover" error.  Most
   Sigmas and Pis are abbreviated as * or -> *)
 
-lemma Sigma_empty1 [simp]: "Sigma(0,B) = 0"
+lemma Sigma_empty1 [simp]: "Sigma 0 B = 0"
 by blast
 
 lemma Sigma_empty2 [simp]: "A*0 = 0"
@@ -130,46 +130,46 @@ by (simp add: fst_def)
 lemma snd_conv [simp]: "snd(<a,b>) = b"
 by (simp add: snd_def)
 
-lemma fst_type [TC]: "p \<in> Sigma(A,B) ==> fst(p) \<in> A"
+lemma fst_type [TC]: "p \<in> Sigma A B ==> fst(p) \<in> A"
 by auto
 
-lemma snd_type [TC]: "p \<in> Sigma(A,B) ==> snd(p) \<in> B(fst(p))"
+lemma snd_type [TC]: "p \<in> Sigma A B ==> snd(p) \<in> B(fst(p))"
 by auto
 
-lemma Pair_fst_snd_eq: "a \<in> Sigma(A,B) ==> <fst(a),snd(a)> = a"
+lemma Pair_fst_snd_eq: "a \<in> Sigma A B ==> <fst(a),snd(a)> = a"
 by auto
 
 
 subsection\<open>The Eliminator, @{term split}\<close>
 
 (*A META-equality, so that it applies to higher types as well...*)
-lemma split [simp]: "split(%x y. c(x,y), <a,b>) == c(a,b)"
+lemma split [simp]: "split (%x y. c x y) <a,b> == c a b"
 by (simp add: split_def)
 
 lemma split_type [TC]:
-    "[|  p \<in> Sigma(A,B);
-         !!x y.[| x \<in> A; y \<in> B(x) |] ==> c(x,y):C(<x,y>)
-     |] ==> split(%x y. c(x,y), p) \<in> C(p)"
+    "[|  p \<in> Sigma A B;
+         !!x y.[| x \<in> A; y \<in> B(x) |] ==> c x y : C <x,y>
+     |] ==> split (%x y. c x y) p \<in> C p"
 by (erule SigmaE, auto)
 
 lemma expand_split:
   "u \<in> A*B ==>
-        R(split(c,u)) \<longleftrightarrow> (\<forall>x\<in>A. \<forall>y\<in>B. u = <x,y> \<longrightarrow> R(c(x,y)))"
+        R (split c u) \<longleftrightarrow> (\<forall>x\<in>A. \<forall>y\<in>B. u = <x,y> \<longrightarrow> R (c x y))"
 by (auto simp add: split_def)
 
 
 subsection\<open>A version of @{term split} for Formulae: Result Type @{typ o}\<close>
 
-lemma splitI: "R(a,b) ==> split(R, <a,b>)"
+lemma splitI: "R a b ==> split R <a,b>"
 by (simp add: split_def)
 
 lemma splitE:
-    "[| split(R,z);  z \<in> Sigma(A,B);
-        !!x y. [| z = <x,y>;  R(x,y) |] ==> P
+    "[| split R z;  z \<in> Sigma A B;
+        !!x y. [| z = <x,y>;  R x y |] ==> P
      |] ==> P"
 by (auto simp add: split_def)
 
-lemma splitD: "split(R,<a,b>) ==> R(a,b)"
+lemma splitD: "split R <a,b> ==> R a b"
 by (simp add: split_def)
 
 text \<open>
@@ -177,11 +177,11 @@ text \<open>
 \<close>
 
 lemma split_paired_Bex_Sigma [simp]:
-     "(\<exists>z \<in> Sigma(A,B). P(z)) \<longleftrightarrow> (\<exists>x \<in> A. \<exists>y \<in> B(x). P(<x,y>))"
+     "(\<exists>z \<in> Sigma A B. P(z)) \<longleftrightarrow> (\<exists>x \<in> A. \<exists>y \<in> B(x). P(<x,y>))"
 by blast
 
 lemma split_paired_Ball_Sigma [simp]:
-     "(\<forall>z \<in> Sigma(A,B). P(z)) \<longleftrightarrow> (\<forall>x \<in> A. \<forall>y \<in> B(x). P(<x,y>))"
+     "(\<forall>z \<in> Sigma A B. P(z)) \<longleftrightarrow> (\<forall>x \<in> A. \<forall>y \<in> B(x). P(<x,y>))"
 by blast
 
 end
