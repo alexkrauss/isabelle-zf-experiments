@@ -230,10 +230,10 @@ by (case_tac Q, simp_all)
 **)
 
 lemmas split_if_eq1 = split_if [of "%x. x = b"] for b
-lemmas split_if_eq2 = split_if [of "%x. a = x"] for x
+lemmas split_if_eq2 = split_if [of "%x. a = x"] for a
 
 lemmas split_if_mem1 = split_if [of "%x. x \<in> b"] for b
-lemmas split_if_mem2 = split_if [of "%x. a \<in> x"] for x
+lemmas split_if_mem2 = split_if [of "%x. a \<in> x"] for a
 
 lemmas split_ifs = split_if_eq1 split_if_eq2 split_if_mem1 split_if_mem2
 
@@ -480,9 +480,7 @@ lemma INT_simps2:
      "(\<Inter>x\<in>C. A - B(x))   = (if C=0 then 0 else A - (\<Union>x\<in>C. B(x)))"
      "(\<Inter>x\<in>C. cons a (B x)) = (if C=0 then 0 else cons a (\<Inter>x\<in>C. B(x)))"
      "(\<Inter>x\<in>C. A \<union> B(x))  = (if C=0 then 0 else A \<union> (\<Inter>x\<in>C. B(x)))"
-apply (simp_all add: Inter_def)
-apply (blast intro!: equalityI)+
-done
+  by (auto simp add: Inter_def)
 
 lemmas INT_simps [simp] = INT_simps1 INT_simps2
 
@@ -493,17 +491,14 @@ lemma INT_extend_simps1:
      "(\<Inter>x\<in>C. A(x)) \<inter> B = (\<Inter>x\<in>C. A(x) \<inter> B)"
      "(\<Inter>x\<in>C. A(x)) - B = (\<Inter>x\<in>C. A(x) - B)"
      "(\<Inter>x\<in>C. A(x)) \<union> B  = (if C=0 then B else (\<Inter>x\<in>C. A(x) \<union> B))"
-apply (simp_all add: Inter_def, blast+)
-done
+  by (auto simp add: Inter_def)
 
 lemma INT_extend_simps2:
      "A \<inter> (\<Inter>x\<in>C. B(x)) = (\<Inter>x\<in>C. A \<inter> B(x))"
      "A - (\<Union>x\<in>C. B(x))   = (if C=0 then A else (\<Inter>x\<in>C. A - B(x)))"
      "cons a (\<Inter>x\<in>C. B(x)) = (if C=0 then {a} else (\<Inter>x\<in>C. cons a (B x)))"
      "A \<union> (\<Inter>x\<in>C. B(x))  = (if C=0 then A else (\<Inter>x\<in>C. A \<union> B(x)))"
-apply (simp_all add: Inter_def)
-apply (blast intro!: equalityI)+
-done
+  by (auto simp add: Inter_def)
 
 lemmas INT_extend_simps = INT_extend_simps1 INT_extend_simps2
 
