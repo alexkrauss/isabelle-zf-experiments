@@ -119,7 +119,6 @@ Soft_Type_Inference.infer_type @{context} @{term "plus n n"}
 
 
 
-
-
 end
 
+end
