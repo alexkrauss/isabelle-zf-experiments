@@ -1,6 +1,5 @@
 theory Typing
   imports Function
-  keywords "typing" :: thy_decl
 begin
 
 ML_file "zf_logic.ML"
@@ -45,14 +44,22 @@ text \<open>
 
 
 context
-  fixes A B N :: i (* some sets *)
-  fixes f :: "i \<Rightarrow> i" (* a function *)
-  fixes vec :: "i \<Rightarrow> i" (* a type constructor *)
-  fixes vec_concat :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i" (* Vector concatenation. First two arguments are type arguments *)
+  fixes A B N :: i \<comment> \<open>some sets\<close>
+  fixes f :: "i \<Rightarrow> i" \<comment> \<open>a function\<close>
+  fixes vec :: "i \<Rightarrow> i" \<comment> \<open>a type constructor\<close>
+  fixes vec_concat :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i" \<comment> \<open> Vector concatenation. First two arguments are type arguments \<close>
 begin
 
 ML \<open>
-  fun testfn ctxt = Soft_Type.read_judgement #> Soft_Type.prop_of_judgement #> Syntax.pretty_term ctxt;
+  fun testfn ctxt t = 
+    let
+      val j = Soft_Type.judgement_of_prop t
+      val prp = Soft_Type.prop_of_judgement j
+      val _ = if (prp <> t) then error ("Not inverse" ^ (@{make_string} (prp, t))) else ();
+    in 
+      Syntax.pretty_term ctxt prp
+    end;
+
     testfn @{context} @{term "f ::: (x : set A) \<Rightarrow> set (A + B)"};
     testfn @{context} @{term "vec_concat ::: {n : set N} \<Rightarrow> {m : set N} \<Rightarrow> (x : set (vec n)) \<Rightarrow> (y : set (vec m)) \<Rightarrow> set (vec (n + m))"};
   \<close>
@@ -64,7 +71,7 @@ end
 
 ML \<open>
   
-fun expect (x:Soft_Type.soft_type) f = if not (f x) then error ("expectation failed. Value is " ^ @{make_string} x) else ();
+fun expect (x:Soft_Type.soft_type) f = if not (f x) then raise Fail ("expectation failed. Value is " ^ @{make_string} x) else ();
 
 
 (* substitute a free *)
@@ -98,34 +105,19 @@ context
   fixes plus :: "i \<Rightarrow> i \<Rightarrow> i"
 begin
 
-term "n ::: set N"
 
-
-
-ML \<open>
-
-val Gamma = Soft_Type_Inference.init_context
-  [(@{term n}, @{soft_type "set N"}),
-   (@{term plus}, @{soft_type "(x : set N) \<Rightarrow> (y : set N) \<Rightarrow> (set N)"})]
-;
-
-Soft_Type_Inference.collect_constraints Gamma @{term "plus n n"};
-
-\<close>
+declare [[type "plus ::: (x: set N) \<Rightarrow> (y : set N) \<Rightarrow> set N"]]
+declare [[type "n ::: set N"]]
 
 ML \<open>
 
-val ictxt = Soft_Type_Inference.collect_constraints Gamma @{term "\<lambda>x. plus n x"}
-  |> snd;
 
-val Soft_Type_Inference.Inference_Context {constraints, ...} = ictxt;
-val sconstraints = Soft_Type_Inference.simplify_constraints constraints [] [];
+Soft_Type_Inference.infer_type @{context} @{term "plus n n"}
 
 \<close>
 
 
 
-declaration \<open> fn _ => Soft_Type_Context.put @{term "a"} @{soft_type "set A"}  \<close>
 
 
 

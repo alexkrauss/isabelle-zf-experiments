@@ -34,6 +34,7 @@ sig
  
   (* the semantic proposition associated with a typing judgement *)
   val prop_of_judgement: judgement -> term
+  val judgement_of_prop: term -> judgement
 
   (* cf. analogous operations that we already have on terms ( Term.* ) *)
   val subst_bound: term -> soft_type -> soft_type
@@ -60,9 +61,9 @@ fun read_soft_type tm =
     Const (@{const_name "set"}, _) $ set => 
       Set set
   | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, ty, B) =>
-      Pi (true, x, ty, read_soft_type A, read_soft_type B)
-  | Const (@{const_name "Implicit_Pi_type"}, _) $ A $ Abs (x, ty, B) =>
       Pi (false, x, ty, read_soft_type A, read_soft_type B)
+  | Const (@{const_name "Implicit_Pi_type"}, _) $ A $ Abs (x, ty, B) =>
+      Pi (true, x, ty, read_soft_type A, read_soft_type B)
   | Var (idxn, _) =>
       STVar idxn
   | _ => error ("Invalid soft type: " ^ Syntax.string_of_term @{context} tm);
@@ -91,6 +92,13 @@ fun encode_soft_type st =
   | STVar idxn => Var (idxn, typeT);
 
 
+fun incr_boundvars i st =
+  case st of 
+    Set A => Set (Term.incr_boundvars i A)
+  | Pi (b, x, ty, A, B) => Pi (b, x, ty, incr_boundvars i A, incr_boundvars i B)
+  | st as _ => st
+
+
 fun prop_of_judgement (Judgement (t, tau)) = 
   case tau of 
     Set A => 
@@ -98,16 +106,52 @@ fun prop_of_judgement (Judgement (t, tau)) =
   | Pi (_, x, ty, A, B) => 
       Logic.all_const ty $ 
         Abs (x, ty, Logic.mk_implies (
-          prop_of_judgement (Judgement (Bound 0, A)), 
-          prop_of_judgement (Judgement (incr_boundvars 1 t $ Bound 0, B))))
+          prop_of_judgement (Judgement (Bound 0, incr_boundvars 1 A)), 
+          prop_of_judgement (Judgement (Term.incr_boundvars 1 t $ Bound 0, B))))
   | STVar _ => error ("Illegal unification variable.");
+
+
+fun decr_bounds t = 
+  if (Term.is_dependent t) then error "is_dependent" 
+  else Term.subst_bound (Bound 0, t)
+
+fun decr_bounds_st st =
+  case st of
+    Set A => Set (decr_bounds A)
+  | Pi (b, x, T, A, B) => Pi (b, x, T, decr_bounds_st A, decr_bounds_st B)
+  | st as _ => st
+
+(* The inverse of prop_of_judgement. 
+
+This function requires its input to be precisely in the form produced by prop_of_judgement.
+Equivalent forms, such as hhf normal form are not converted correctly.
+*)
+fun judgement_of_prop t =
+  case t of
+    Const (@{const_name "Pure.all"}, _) $ 
+      Abs (v, T, Const (@{const_name "Pure.imp"}, _) $ u $ s) =>
+        let
+          val Judgement (x, A) = judgement_of_prop u
+          val Judgement (fx, Bx) = judgement_of_prop s
+        in 
+          case fx of
+            f $ x1 => 
+              if x aconv x1 
+              then Judgement (decr_bounds f, Pi (false, v, T, decr_bounds_st A, Bx))
+              else error ("Bad prop: " ^ @{make_string} (fx, x, Bx))
+          | _ => error "Bad prop 2"
+        end
+  | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "mem"}, _) $ x $ A) =>
+       Judgement (x, Set A)
+
+
 
 fun subst_bound arg sty =
   let 
     (* stolen from Term.subst_bound *)
     fun subst (Bound i, lev) =
           if i < lev then raise Same.SAME   (*var is locally bound*)
-          else if i = lev then incr_boundvars lev arg
+          else if i = lev then Term.incr_boundvars lev arg
           else Bound (i - 1)   (*loose: change it*)
       | subst (Abs (a, T, body), lev) = Abs (a, T, subst (body, lev + 1))
       | subst (f $ t, lev) =

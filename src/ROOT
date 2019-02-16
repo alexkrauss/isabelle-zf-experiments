@@ -6,5 +6,6 @@ session ZFT = Pure +
   theories
     Set_Theory
     Function
+    Typing
   document_files "root.tex"
 
