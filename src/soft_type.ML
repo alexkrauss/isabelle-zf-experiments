@@ -40,6 +40,7 @@ sig
   val subst_bound: term -> soft_type -> soft_type
   val abstract_over: term -> soft_type -> soft_type
   val subst_STVars: (indexname * soft_type) list -> soft_type -> soft_type
+  val subst_STVars_recursive: (indexname * soft_type) list -> soft_type -> soft_type
 
 end;
 
@@ -202,6 +203,17 @@ fun subst_STVars [] st = st
           | subst st = st;
       in subst st end;   
 
+
+fun subst_STVars_recursive [] st = st
+  | subst_STVars_recursive inst st = 
+      let
+        fun subst (v as STVar xi) = 
+           (case AList.lookup (op =) inst xi of
+              NONE => v
+            | SOME u => subst_STVars_recursive inst u)
+          | subst (Pi (i, x, T, stA, stB)) = Pi (i, x, T, subst stA, subst stB)
+          | subst st = st;
+      in subst st end;   
 
 
 

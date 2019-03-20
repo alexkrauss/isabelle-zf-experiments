@@ -161,11 +161,13 @@ fun infer_type ctxt ts =
     val (sTs, Inference_Context {constraints, var_types, ...}) =
        fold_map (fn t => fn c => collect_constraints c t) ts ictxt
     val (subst, eqs) = simplify_constraints constraints [] []
-    val instantiated = map (Soft_Type.subst_STVars subst) sTs
+    val instantiated = map (Soft_Type.subst_STVars_recursive subst) sTs
 
     val types_for_frees =
       fold Term.add_frees ts []
-      |> map (fn f => (Free f, Termtab.lookup var_types (Free f) |> the |> Soft_Type.subst_STVars subst))
+      |> map (fn f => 
+          (Free f, 
+           Termtab.lookup var_types (Free f) |> the |> Soft_Type.subst_STVars_recursive subst))
 
     val _ = Output.tracing (@{make_string} (instantiated, eqs, types_for_frees))
   in () end 
