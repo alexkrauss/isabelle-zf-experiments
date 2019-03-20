@@ -1,5 +1,7 @@
 # isabelle-zf-experiments
 
+[![Build Status](https://travis-ci.org/alexkrauss/isabelle-zf-experiments.svg?branch=master)](https://travis-ci.org/alexkrauss/isabelle-zf-experiments)
+
 This repository contains an experimental clone of (some parts of) Isabelle/ZF, originally developed by Larry Paulson.
 
 The goal is to experiment with type systems on top of set theory.
