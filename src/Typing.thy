@@ -32,7 +32,7 @@ term "t ::: (x : set A) \<Rightarrow> (set (A + B))"
 
 
 subsection \<open> Interpretation of soft types as propositions \<close>
-
+             
 ML_file "soft_type.ML"
 
 text \<open>
@@ -67,8 +67,6 @@ ML \<open>
 end
 
 
-
-
 ML \<open>
   
 fun expect (x:Soft_Type.soft_type) f = if not (f x) then raise Fail ("expectation failed. Value is " ^ @{make_string} x) else ();
@@ -97,28 +95,37 @@ expect (Soft_Type.subst_bound @{term "y::i"}
 ML_file "soft_type_context.ML"
 ML_file "soft_type_inference.ML"
 
-
+axiomatization
+  List :: "i \<Rightarrow> i"
+and Nil :: "i"
+and Cons :: "i \<Rightarrow> i \<Rightarrow> i"
 
 context
   fixes x n m A B N :: "i"
   fixes f g S T :: "i \<Rightarrow> i"
   fixes plus :: "i \<Rightarrow> i \<Rightarrow> i"
+  fixes append :: "i \<Rightarrow> i \<Rightarrow> i"
 begin
 
 
 declare [[type "plus ::: (x: set N) \<Rightarrow> (y : set N) \<Rightarrow> set N"]]
+declare [[type "Pair ::: (x: set A) \<Rightarrow> (y : set B) \<Rightarrow> set (A \<times> B)"]]
+declare [[type "Nil ::: set (List A)"]]
+declare [[type "Cons ::: (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"]]
 declare [[type "n ::: set N"]]
+declare [[type "(First_Order_Logic.eq::i\<Rightarrow>i\<Rightarrow>o) ::: (x: set (List A)) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set B"]]
 
 ML \<open>
 
-
-Soft_Type_Inference.infer_type @{context} @{term "plus n n"}
+Soft_Type_Inference.infer_type @{context} [
+  @{term "append (Cons x xs) ys = Cons x (append xs ys)"},
+  @{term "append Nil ys = ys"}
+]
 
 \<close>
 
 
-
-
 end
+
 
 end

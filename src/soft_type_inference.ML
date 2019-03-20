@@ -29,7 +29,7 @@ val simplify_constraints: constraint list -> (indexname * Soft_Type.soft_type) l
      -> (term * term) list
      -> (indexname * Soft_Type.soft_type) list * (term * term) list
 
-val infer_type: Proof.context -> term -> unit;
+val infer_type: Proof.context -> term list -> unit;
 
 end;
 
@@ -63,20 +63,27 @@ struct
   fun fresh_variable (Inference_Context {var_types, constraints, fresh_idx}) =
     (Soft_Type.STVar ("A", fresh_idx), 
      Inference_Context {var_types=var_types, constraints=constraints, fresh_idx=fresh_idx + 1})
-
+  
   fun add_free (v, st) (Inference_Context {var_types, constraints, fresh_idx}) =
     Inference_Context {var_types=Termtab.update_new (v, st) var_types, constraints=constraints, fresh_idx=fresh_idx};
+
+  fun fix_var_type v Gamma =
+    let
+      val (stv, Gamma1) = fresh_variable Gamma
+    in
+      (stv, add_free (v, stv) Gamma1)
+    end
 
   fun collect_constraints (Gamma : inference_context) t =
     case t of 
       Free _ => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
-        | NONE => fresh_variable Gamma)
-    | Const _ => 
+        | NONE => fix_var_type t Gamma)
+    | Const (n, _) => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
-        | NONE => error ("Cannot resolve type of constant"))
+        | NONE => error ("Cannot resolve type of constant " ^ quote n))
     | s $ u => 
         let
           val (s_st, Gamma1) = collect_constraints Gamma s
@@ -89,6 +96,13 @@ struct
                 val application_type = Soft_Type.subst_bound u sTB
               in
                 (application_type, add_constraint new_constraint Gamma2)
+              end
+          | STVar _ =>
+              let
+                val (sTB, Gamma3) = fresh_variable Gamma2
+                val new_constraint = Eq (s_st, Soft_Type.Pi (false, "x", fastype_of u, u_st, sTB))
+              in
+                (sTB, add_constraint new_constraint Gamma3)
               end
           | _ => error ("bad soft_type at application head: " ^ quote (@{make_string} s_st))
         end
@@ -136,17 +150,24 @@ struct
        | Eq (st, STVar v) => simplify_constraints (Eq (STVar v, st) :: cs) type_subst term_eqs
 
 
-fun infer_type ctxt t = 
+fun infer_type ctxt ts = 
   let
+    val var_types = Soft_Type_Context.Ctxt.get (Context.Proof ctxt);
     val ictxt = Inference_Context {
-        var_types = Soft_Type_Context.Ctxt.get (Context.Proof ctxt),
+        var_types = var_types,
         constraints = [],
         fresh_idx = 0
       }
-    val (sT, Inference_Context {constraints, ...}) = collect_constraints ictxt t
+    val (sTs, Inference_Context {constraints, var_types, ...}) =
+       fold_map (fn t => fn c => collect_constraints c t) ts ictxt
     val (subst, eqs) = simplify_constraints constraints [] []
-    val instantiated = Soft_Type.subst_STVars subst sT
-    val _ = Output.tracing (@{make_string} (instantiated, eqs))
+    val instantiated = map (Soft_Type.subst_STVars subst) sTs
+
+    val types_for_frees =
+      fold Term.add_frees ts []
+      |> map (fn f => (Free f, Termtab.lookup var_types (Free f) |> the |> Soft_Type.subst_STVars subst))
+
+    val _ = Output.tracing (@{make_string} (instantiated, eqs, types_for_frees))
   in () end 
 
 end
