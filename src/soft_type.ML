@@ -17,6 +17,7 @@ sig
   (* Locally nameless ML representation of soft types. *)
   datatype soft_type =
     Set of term (* May contain Bound occurrences from Pi binding. *)
+  | Type
   | Pi of bool (* implicit *) 
           * string (* bound var name *)
           * typ (* bound var meta type *)
@@ -51,6 +52,7 @@ val typeT = @{typ "type"};
 
 datatype soft_type =
   Set of term  
+| Type
 | Pi of bool * string * typ * soft_type * soft_type
 | STVar of indexname;
 
@@ -61,6 +63,7 @@ fun read_soft_type tm =
   case tm of 
     Const (@{const_name "set"}, _) $ set => 
       Set set
+  | Const (@{const_name "Type"}, _) => Type
   | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, ty, B) =>
       Pi (false, x, ty, read_soft_type A, read_soft_type B)
   | Const (@{const_name "Implicit_Pi_type"}, _) $ A $ Abs (x, ty, B) =>
@@ -81,6 +84,7 @@ fun is_judgement tm =
 
 
 val set_const = @{term "set"};
+val Type_const = @{term "Type"}
 fun Pi_const i T = 
   Const (if i then @{const_name "Implicit_Pi_type"} else @{const_name "Pi_type"},
     typeT --> (T --> typeT) --> typeT);
@@ -88,6 +92,7 @@ fun Pi_const i T =
 fun encode_soft_type st =
   case st of 
     Set t => set_const $ t
+  | Type => Type_const
   | Pi (i, x, T, stA, stB) =>
       Pi_const i T $ encode_soft_type stA $ Abs (x, T, encode_soft_type stB)
   | STVar idxn => Var (idxn, typeT);
@@ -96,6 +101,7 @@ fun encode_soft_type st =
 fun incr_boundvars i st =
   case st of 
     Set A => Set (Term.incr_boundvars i A)
+  | Type => st
   | Pi (b, x, ty, A, B) => Pi (b, x, ty, incr_boundvars i A, incr_boundvars i B)
   | st as _ => st
 
@@ -104,6 +110,7 @@ fun prop_of_judgement (Judgement (t, tau)) =
   case tau of 
     Set A => 
       ZF_Logic.Trueprop $ ZF_Logic.mk_mem t A
+  | Type => ZF_Logic.Trueprop $ (@{term "Univ"} $ t)
   | Pi (_, x, ty, A, B) => 
       Logic.all_const ty $ 
         Abs (x, ty, Logic.mk_implies (
@@ -144,6 +151,8 @@ fun judgement_of_prop t =
         end
   | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "mem"}, _) $ x $ A) =>
        Judgement (x, Set A)
+  | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "Univ"}, _) $ x) =>
+       Judgement (x, Type)
 
 
 
@@ -161,6 +170,7 @@ fun subst_bound arg sty =
       | subst _ = raise Same.SAME;
 
     fun subst_sT lev (Set t) = Set (subst (t, lev)) 
+      | subst_sT _ Type = Type
       | subst_sT lev (Pi (imp, n, ty, sTA, sTB)) = 
           (Pi (imp, n, ty, subst_sT lev sTA handle Same.SAME => sTA, subst_sT (lev + 1) sTB)
            handle Same.SAME => (Pi (imp, n, ty, subst_sT lev sTA, sTB)))
@@ -183,6 +193,7 @@ fun abstract_over v st =
     fun abs_st lev st =
       case st of
           Set t => Set (abs lev t)
+        | Type => st
         | Pi (i, x, T, stA, stB) => 
            let 
              val stA1 = (abs_st lev stA handle Same.SAME => stA)
@@ -222,6 +233,7 @@ fun subst_STVars_recursive [] st = st
 fun ml_print_boolean b = if b then "true" else "false";
 
 fun ml_print_soft_type (Set t) = "Soft_Type.Set " ^ ML_Syntax.atomic (ML_Syntax.print_term t)
+  | ml_print_soft_type Type = "Soft_Type.Type"
   | ml_print_soft_type (Pi (i, x, T, stA, stB)) = "Soft_Type.Pi (" ^ 
       commas [
         ml_print_boolean i,
@@ -240,14 +252,14 @@ val _ = Theory.setup (ML_Antiquotation.inline @{binding soft_type}
 
 (* Input check phase that replaces a typing judgement by the corresponding proposition.
    Thus, typing judgements can be used to state properties. *)
-fun replace_judgement t = 
+fun replace_judgement ctxt t = 
   if is_judgement t then prop_of_judgement (read_judgement t)
   else case t of
-    s $ u => replace_judgement s $ replace_judgement u
-  | Abs (x, T, b) => Abs (x, T, replace_judgement b)
+    s $ u => replace_judgement ctxt s $ replace_judgement ctxt u
+  | Abs (x, T, b) => Abs (x, T, replace_judgement ctxt b)
   | t => t;
 
-val _ = Context.>> (Syntax_Phases.term_check 3 "soft_type_expand" (K (map replace_judgement)));
+val _ = Context.>> (Syntax_Phases.term_check 0 "soft_type_expand" (fn ctxt => (map (replace_judgement ctxt))));
 
 
 end

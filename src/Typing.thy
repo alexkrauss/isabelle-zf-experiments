@@ -16,6 +16,7 @@ text \<open>
 typedecl type
 
 axiomatization set :: "i \<Rightarrow> type"
+and Type :: "type"
 and Pi_type :: "type \<Rightarrow> ('a \<Rightarrow> type) \<Rightarrow> type"
 and Implicit_Pi_type :: "type \<Rightarrow> ('a \<Rightarrow> type) \<Rightarrow> type"
 and has_type :: "('b::{}) \<Rightarrow> type \<Rightarrow> prop" (infix ":::" 40)
@@ -32,6 +33,10 @@ term "t ::: (x : set A) \<Rightarrow> (set (A + B))"
 
 
 subsection \<open> Interpretation of soft types as propositions \<close>
+
+definition Univ :: "i \<Rightarrow> o"
+  where "Univ x \<longleftrightarrow> True"
+
              
 ML_file "soft_type.ML"
 
@@ -92,13 +97,25 @@ expect (Soft_Type.subst_bound @{term "y::i"}
 
 \<close>
 
+axiomatization
+  List :: "i \<Rightarrow> i"
+and Nil :: "i \<Rightarrow> i"
+and Cons :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
+
+declare [[show_types, show_sorts]]
+
+lemma "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"
+  oops
+
+lemma "Nil ::: (A : Type) \<Rightarrow> set (List A)"
+
+
+
+
+
 ML_file "soft_type_context.ML"
 ML_file "soft_type_inference.ML"
 
-axiomatization
-  List :: "i \<Rightarrow> i"
-and Nil :: "i"
-and Cons :: "i \<Rightarrow> i \<Rightarrow> i"
 
 context
   fixes x n m A B N :: "i"
@@ -108,12 +125,17 @@ context
 begin
 
 
+
+
 declare [[type "plus ::: (x: set N) \<Rightarrow> (y : set N) \<Rightarrow> set N"]]
 declare [[type "Pair ::: (x: set A) \<Rightarrow> (y : set B) \<Rightarrow> set (A \<times> B)"]]
-declare [[type "Nil ::: set (List A)"]]
-declare [[type "Cons ::: (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"]]
+declare [[type "Nil ::: (A: Type) \<Rightarrow> set (List A)"]]
+declare [[type "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"]]
 declare [[type "n ::: set N"]]
 declare [[type "(First_Order_Logic.eq::i\<Rightarrow>i\<Rightarrow>o) ::: (x: set (List A)) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set B"]]
+
+
+term "First_Order_Logic.eq"
 
 ML \<open>
 
