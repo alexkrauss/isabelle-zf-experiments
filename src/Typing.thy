@@ -1,5 +1,5 @@
 theory Typing
-  imports Function
+  imports Nat_ZF
 begin
 
 ML_file "zf_logic.ML"
@@ -43,46 +43,26 @@ ML_file "soft_type.ML"
 text \<open>
   The interpretation of soft types as defined above is given extra-logically by a function that
   translates typing judgements into propositions.
-
-  Below are some examples:
 \<close>
-
-
-axiomatization
-  List :: "i \<Rightarrow> i"
-and Nil :: "i \<Rightarrow> i"
-and Cons :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
-
-
-lemma "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"
-  oops
-
-lemma "Nil ::: (A : Type) \<Rightarrow> set (List A)"
-  oops
-
-
 
 
 ML_file "soft_type_context.ML"
 ML_file "soft_type_inference.ML"
 
 
-context
-  fixes x n m A B N :: "i"
-  fixes f g S T :: "i \<Rightarrow> i"
-  fixes plus :: "i \<Rightarrow> i \<Rightarrow> i"
-  fixes append :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
-begin
+text \<open> Example: Inferring types for list append \<close>
 
-
-
-
-declare [[type "plus ::: (x: set N) \<Rightarrow> (y : set N) \<Rightarrow> set N"]]
-declare [[type "Pair ::: (x: set A) \<Rightarrow> (y : set B) \<Rightarrow> set (A \<times> B)"]]
+axiomatization
+  List :: "i \<Rightarrow> i"
+and Nil :: "i \<Rightarrow> i"
+and Cons :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
 declare [[type "Nil ::: (A: Type) \<Rightarrow> set (List A)"]]
 declare [[type "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"]]
-declare [[type "n ::: set N"]]
 
+context
+  fixes A :: "i"
+  fixes append :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
+begin
 
 
 ML \<open>
@@ -91,11 +71,37 @@ Soft_Type_Inference.infer_type @{context} [
   @{term "append A (Cons A x xs) ys = Cons A x (append A xs ys)"},
   @{term "append A (Nil A) ys = ys"} 
 ]
-
 \<close>
 
 
 end
 
+text \<open> Example: Inferring types for vectors of given length \<close>
+
+axiomatization
+  Vec :: "i \<Rightarrow> i \<Rightarrow> i"
+and VNil :: "i \<Rightarrow> i"
+and VCons :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
+and add :: "i \<Rightarrow> i \<Rightarrow> i"
+declare [[type "Vec ::: (A: Type) \<Rightarrow> (n: set nat) \<Rightarrow> Type"]]
+declare [[type "VNil ::: (A: Type) \<Rightarrow> set (Vec A 0)"]]
+declare [[type "VCons ::: (A: Type) \<Rightarrow> (n: set nat) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (Vec A n)) \<Rightarrow> set (Vec A (succ n))"]]
+declare [[type "add ::: (n : set nat) \<Rightarrow> (m : set nat) \<Rightarrow> set nat"]]
+
+context
+  fixes vappend :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
+begin
+
+ML \<open>
+
+Soft_Type_Inference.infer_type @{context} [
+  @{term "vappend A n m (VCons A n x xs) ys = VCons A (add n m) x (vappend A n m xs ys)"},
+  @{term "vappend A n m (VNil A) ys = ys"} 
+]
+
+\<close>
+
+
+end
 
 end
