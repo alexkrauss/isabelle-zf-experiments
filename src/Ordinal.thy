@@ -5,7 +5,7 @@
 
 section\<open>Transitive Sets and Ordinals\<close>
 
-theory Ordinal imports WF Bool equalities begin
+theory Ordinal imports WF Bool Equalities begin
 
 definition
   Memrel        :: "i=>i"  where

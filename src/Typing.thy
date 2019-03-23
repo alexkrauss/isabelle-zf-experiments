@@ -58,7 +58,7 @@ lemma "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List
   oops
 
 lemma "Nil ::: (A : Type) \<Rightarrow> set (List A)"
-
+  oops
 
 
 

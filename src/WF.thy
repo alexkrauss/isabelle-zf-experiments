@@ -26,28 +26,28 @@ definition
 definition
   wf_on        :: "[i,i]=>o"                      ("wf[_]'(_')")  where
     (*r is well-founded on A*)
-    "wf_on(A,r) == wf(r \<inter> A*A)"
+    "wf_on A r == wf(r \<inter> A*A)"
 
 definition
   is_recfun    :: "[i, i, [i,i]=>i, i] =>o"  where
-    "is_recfun(r,a,H,f) == (f = (\<lambda>x\<in>r-``{a}. H(x, restrict(f, r-``{x}))))"
+    "is_recfun r a H f == (f = (\<lambda>x\<in>r-``{a}. H x (restrict f (r-``{x}))))"
 
 definition
   the_recfun   :: "[i, i, [i,i]=>i] =>i"  where
-    "the_recfun(r,a,H) == (THE f. is_recfun(r,a,H,f))"
+    "the_recfun r a H == (THE f. is_recfun r a H f)"
 
 definition
   wftrec :: "[i, i, [i,i]=>i] =>i"  where
-    "wftrec(r,a,H) == H(a, the_recfun(r,a,H))"
+    "wftrec r a H == H a (the_recfun r a H)"
 
 definition
   wfrec :: "[i, i, [i,i]=>i] =>i"  where
     (*public version.  Does not require r to be transitive*)
-    "wfrec(r,a,H) == wftrec(r^+, a, %x f. H(x, restrict(f,r-``{x})))"
+    "wfrec r a H == wftrec (r^+) a (%x f. H x (restrict f (r-``{x})))"
 
 definition
-  wfrec_on     :: "[i, i, i, [i,i]=>i] =>i"       ("wfrec[_]'(_,_,_')")  where
-    "wfrec[A](r,a,H) == wfrec(r \<inter> A*A, a, H)"
+  wfrec_on     :: "[i, i, i, [i,i]=>i] =>i" where
+    "wfrec_on A r a H == wfrec (r \<inter> A*A) a H"
 
 
 subsection\<open>Well-Founded Relations\<close>
@@ -218,7 +218,7 @@ lemmas underD = vimage_singleton_iff [THEN iffD1]
 
 subsection\<open>The Predicate @{term is_recfun}\<close>
 
-lemma is_recfun_type: "is_recfun(r,a,H,f) ==> f \<in> r-``{a} -> range(f)"
+lemma is_recfun_type: "is_recfun r a H f ==> f \<in> r-``{a} -> range(f)"
 apply (unfold is_recfun_def)
 apply (erule ssubst)
 apply (rule lamI [THEN rangeI, THEN lam_type], assumption)
@@ -227,7 +227,7 @@ done
 lemmas is_recfun_imp_function = is_recfun_type [THEN fun_is_function]
 
 lemma apply_recfun:
-    "[| is_recfun(r,a,H,f); <x,a>:r |] ==> f`x = H(x, restrict(f,r-``{x}))"
+    "[| is_recfun r a H f; <x,a>:r |] ==> f`x = H x (restrict f (r-``{x}))"
 apply (unfold is_recfun_def)
   txt\<open>replace f only on the left-hand side\<close>
 apply (erule_tac P = "%x. t(x) = u" for t u in ssubst)
@@ -235,7 +235,7 @@ apply (simp add: underI)
 done
 
 lemma is_recfun_equal [rule_format]:
-     "[| wf(r);  trans(r);  is_recfun(r,a,H,f);  is_recfun(r,b,H,g) |]
+     "[| wf(r);  trans(r);  is_recfun r a H f;  is_recfun r b H g |]
       ==> <x,a>:r \<longrightarrow> <x,b>:r \<longrightarrow> f`x=g`x"
 apply (frule_tac f = f in is_recfun_type)
 apply (frule_tac f = g in is_recfun_type)
@@ -244,7 +244,7 @@ apply (erule_tac a=x in wf_induct)
 apply (intro impI)
 apply (elim ssubst)
 apply (simp (no_asm_simp) add: vimage_singleton_iff restrict_def)
-apply (rule_tac t = "%z. H (x, z)" for x in subst_context)
+apply (rule_tac t = "%z. H x z" for x in subst_context)
 apply (subgoal_tac "\<forall>y\<in>r-``{x}. \<forall>z. <y,z>:f \<longleftrightarrow> <y,z>:g")
  apply (blast dest: transD)
 apply (simp add: apply_iff)
@@ -253,8 +253,8 @@ done
 
 lemma is_recfun_cut:
      "[| wf(r);  trans(r);
-         is_recfun(r,a,H,f);  is_recfun(r,b,H,g);  <b,a>:r |]
-      ==> restrict(f, r-``{b}) = g"
+         is_recfun r a H f;  is_recfun r b H g;  <b,a>:r |]
+      ==> restrict f (r-``{b}) = g"
 apply (frule_tac f = f in is_recfun_type)
 apply (rule fun_extension)
   apply (blast dest: transD intro: restrict_type2)
@@ -265,33 +265,33 @@ done
 subsection\<open>Recursion: Main Existence Lemma\<close>
 
 lemma is_recfun_functional:
-     "[| wf(r); trans(r); is_recfun(r,a,H,f); is_recfun(r,a,H,g) |]  ==>  f=g"
+     "[| wf(r); trans(r); is_recfun r a H f; is_recfun r a H g |]  ==>  f=g"
 by (blast intro: fun_extension is_recfun_type is_recfun_equal)
 
 lemma the_recfun_eq:
-    "[| is_recfun(r,a,H,f);  wf(r);  trans(r) |] ==> the_recfun(r,a,H) = f"
+    "[| is_recfun r a H f;  wf(r);  trans(r) |] ==> the_recfun r a H = f"
 apply (unfold the_recfun_def)
 apply (blast intro: is_recfun_functional)
 done
 
-(*If some f satisfies is_recfun(r,a,H,-) then so does the_recfun(r,a,H) *)
+(*If some f satisfies is_recfun(r,a,H,-) then so does the_recfun r a H *)
 lemma is_the_recfun:
-    "[| is_recfun(r,a,H,f);  wf(r);  trans(r) |]
-     ==> is_recfun(r, a, H, the_recfun(r,a,H))"
+    "[| is_recfun r a H f;  wf(r);  trans(r) |]
+     ==> is_recfun r a H (the_recfun r a H)"
 by (simp add: the_recfun_eq)
 
 lemma unfold_the_recfun:
-     "[| wf(r);  trans(r) |] ==> is_recfun(r, a, H, the_recfun(r,a,H))"
+     "[| wf(r);  trans(r) |] ==> is_recfun r a H (the_recfun r a H)"
 apply (rule_tac a=a in wf_induct, assumption)
 apply (rename_tac a1)
-apply (rule_tac f = "\<lambda>y\<in>r-``{a1}. wftrec (r,y,H)" in is_the_recfun)
+apply (rule_tac f = "\<lambda>y\<in>r-``{a1}. wftrec r y H" in is_the_recfun)
   apply typecheck
 apply (unfold is_recfun_def wftrec_def)
   \<comment>\<open>Applying the substitution: must keep the quantified assumption!\<close>
 apply (rule lam_cong [OF refl])
 apply (drule underD)
 apply (fold is_recfun_def)
-apply (rule_tac t = "%z. H(x, z)" for x in subst_context)
+apply (rule_tac t = "%z. H x z" for x in subst_context)
 apply (rule fun_extension)
   apply (blast intro: is_recfun_type)
  apply (rule lam_type [THEN restrict_type2])
@@ -307,17 +307,17 @@ apply (blast dest: transD)
 done
 
 
-subsection\<open>Unfolding @{term "wftrec(r,a,H)"}\<close>
+subsection\<open>Unfolding @{term "wftrec r a H"}\<close>
 
 lemma the_recfun_cut:
      "[| wf(r);  trans(r);  <b,a>:r |]
-      ==> restrict(the_recfun(r,a,H), r-``{b}) = the_recfun(r,b,H)"
+      ==> restrict (the_recfun r a H) (r-``{b}) = the_recfun r b H"
 by (blast intro: is_recfun_cut unfold_the_recfun)
 
 (*NOT SUITABLE FOR REWRITING: it is recursive!*)
 lemma wftrec:
     "[| wf(r);  trans(r) |] ==>
-          wftrec(r,a,H) = H(a, \<lambda>x\<in>r-``{a}. wftrec(r,x,H))"
+          wftrec r a H = H a (\<lambda>x\<in>r-``{a}. wftrec r x H)"
 apply (unfold wftrec_def)
 apply (subst unfold_the_recfun [unfolded is_recfun_def])
 apply (simp_all add: vimage_singleton_iff [THEN iff_sym] the_recfun_cut)
@@ -328,7 +328,7 @@ subsubsection\<open>Removal of the Premise @{term "trans(r)"}\<close>
 
 (*NOT SUITABLE FOR REWRITING: it is recursive!*)
 lemma wfrec:
-    "wf(r) ==> wfrec(r,a,H) = H(a, \<lambda>x\<in>r-``{a}. wfrec(r,x,H))"
+    "wf(r) ==> wfrec r a H = H a (\<lambda>x\<in>r-``{a}. wfrec r x H)"
 apply (unfold wfrec_def)
 apply (erule wf_trancl [THEN wftrec, THEN ssubst])
  apply (rule trans_trancl)
@@ -339,16 +339,16 @@ done
 
 (*This form avoids giant explosions in proofs.  NOTE USE OF == *)
 lemma def_wfrec:
-    "[| !!x. h(x)==wfrec(r,x,H);  wf(r) |] ==>
-     h(a) = H(a, \<lambda>x\<in>r-``{a}. h(x))"
+    "[| !!x. h(x)==wfrec r x H;  wf(r) |] ==>
+     h(a) = H a (\<lambda>x\<in>r-``{a}. h(x))"
 apply simp
 apply (elim wfrec)
 done
 
 lemma wfrec_type:
     "[| wf(r);  a \<in> A;  field(r)<=A;
-        !!x u. [| x \<in> A;  u \<in> Pi(r-``{x}, B) |] ==> H(x,u) \<in> B(x)
-     |] ==> wfrec(r,a,H) \<in> B(a)"
+        !!x u. [| x \<in> A;  u \<in> Pi (r-``{x}) B |] ==> H x u \<in> B(x)
+     |] ==> wfrec r a H \<in> B(a)"
 apply (rule_tac a = a in wf_induct2, assumption+)
 apply (subst wfrec, assumption)
 apply (simp add: lam_type underD)
@@ -357,10 +357,10 @@ done
 
 lemma wfrec_on:
  "[| wf[A](r);  a \<in> A |] ==>
-         wfrec[A](r,a,H) = H(a, \<lambda>x\<in>(r-``{a}) \<inter> A. wfrec[A](r,x,H))"
+         wfrec_on A r a H = H a (\<lambda>x\<in>(r-``{a}) \<inter> A. wfrec_on A r x H)"
 apply (unfold wf_on_def wfrec_on_def)
 apply (erule wfrec [THEN trans])
-apply (simp add: vimage_Int_square cons_subset_iff)
+apply (simp add: vimage_Int_square)
 done
 
 text\<open>Minimal-element characterization of well-foundedness\<close>

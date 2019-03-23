@@ -9,11 +9,11 @@ theory Trancl imports Fixedpt Perm begin
 
 definition
   refl     :: "[i,i]=>o"  where
-    "refl(A,r) == (\<forall>x\<in>A. <x,x> \<in> r)"
+    "refl A r == (\<forall>x\<in>A. <x,x> \<in> r)"
 
 definition
   irrefl   :: "[i,i]=>o"  where
-    "irrefl(A,r) == \<forall>x\<in>A. <x,x> \<notin> r"
+    "irrefl A r == \<forall>x\<in>A. <x,x> \<notin> r"
 
 definition
   sym      :: "i=>o"  where
@@ -38,7 +38,7 @@ definition
 
 definition
   rtrancl :: "i=>i"  ("(_^*)" [100] 100)  (*refl/transitive closure*)  where
-    "r^* == lfp(field(r)*field(r), %s. id(field(r)) \<union> (r O s))"
+    "r^* == lfp (field r * field r) (%s. id(field(r)) \<union> (r O s))"
 
 definition
   trancl  :: "i=>i"  ("(_^+)" [100] 100)  (*transitive closure*)  where
@@ -46,7 +46,7 @@ definition
 
 definition
   equiv    :: "[i,i]=>o"  where
-    "equiv(A,r) == r \<subseteq> A*A & refl(A,r) & sym(r) & trans(r)"
+    "equiv A r == r \<subseteq> A*A & refl A r & sym(r) & trans(r)"
 
 
 subsection\<open>General properties of relations\<close>
@@ -54,10 +54,10 @@ subsection\<open>General properties of relations\<close>
 subsubsection\<open>irreflexivity\<close>
 
 lemma irreflI:
-    "[| !!x. x \<in> A ==> <x,x> \<notin> r |] ==> irrefl(A,r)"
+    "[| !!x. x \<in> A ==> <x,x> \<notin> r |] ==> irrefl A r"
 by (simp add: irrefl_def)
 
-lemma irreflE: "[| irrefl(A,r);  x \<in> A |] ==>  <x,x> \<notin> r"
+lemma irreflE: "[| irrefl A r;  x \<in> A |] ==>  <x,x> \<notin> r"
 by (simp add: irrefl_def)
 
 subsubsection\<open>symmetry\<close>
@@ -97,7 +97,7 @@ by (simp add: trans_on_def trans_def, blast)
 subsection\<open>Transitive closure of a relation\<close>
 
 lemma rtrancl_bnd_mono:
-     "bnd_mono(field(r)*field(r), %s. id(field(r)) \<union> (r O s))"
+     "bnd_mono (field r * field r) (%s. id(field(r)) \<union> (r O s))"
 by (rule bnd_monoI, blast+)
 
 lemma rtrancl_mono: "r<=s ==> r^* \<subseteq> s^*"

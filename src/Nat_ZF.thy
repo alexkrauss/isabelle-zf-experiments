@@ -9,7 +9,7 @@ theory Nat_ZF imports OrdQuant Bool begin
 
 definition
   nat :: i  where
-    "nat == lfp(Inf, %X. {0} \<union> {succ(i). i \<in> X})"
+    "nat == lfp Inf (%X. {0} \<union> {succ(i). i \<in> X})"
 
 definition
   quasinat :: "i => o"  where
@@ -18,12 +18,12 @@ definition
 definition
   (*Has an unconditional succ case, which is used in "recursor" below.*)
   nat_case :: "[i, i=>i, i]=>i"  where
-    "nat_case(a,b,k) == THE y. k=0 & y=a | (\<exists>x. k=succ(x) & y=b(x))"
+    "nat_case a b k == THE y. k=0 & y=a | (\<exists>x. k=succ(x) & y=b(x))"
 
 definition
   nat_rec :: "[i, i, [i,i]=>i]=>i"  where
-    "nat_rec(k,a,b) ==
-          wfrec(Memrel(nat), k, %n f. nat_case(a, %m. b(m, f`m), n))"
+    "nat_rec k a b ==
+          wfrec (Memrel nat) k (%n f. nat_case a (%m. b m (f`m)) n)"
 
   (*Internalized relations on the naturals*)
 
@@ -51,7 +51,7 @@ text\<open>No need for a less-than operator: a natural number is its list of
 predecessors!\<close>
 
 
-lemma nat_bnd_mono: "bnd_mono(Inf, %X. {0} \<union> {succ(i). i \<in> X})"
+lemma nat_bnd_mono: "bnd_mono Inf (%X. {0} \<union> {succ(i). i \<in> X})"
 apply (rule bnd_monoI)
 apply (cut_tac infinity, blast, blast)
 done
@@ -179,10 +179,10 @@ done
 (*Induction suitable for subtraction and less-than*)
 lemma diff_induct [case_names 0 0_succ succ_succ, consumes 2]:
     "[| m \<in> nat;  n \<in> nat;
-        !!x. x \<in> nat ==> P(x,0);
-        !!y. y \<in> nat ==> P(0,succ(y));
-        !!x y. [| x \<in> nat;  y \<in> nat;  P(x,y) |] ==> P(succ(x),succ(y)) |]
-     ==> P(m,n)"
+        !!x. x \<in> nat ==> P x 0;
+        !!y. y \<in> nat ==> P 0 (succ y);
+        !!x y. [| x \<in> nat;  y \<in> nat;  P x y |] ==> P (succ x) (succ y) |]
+     ==> P m n"
 apply (erule_tac x = m in rev_bspec)
 apply (erule nat_induct, simp)
 apply (rule ballI)
@@ -194,8 +194,8 @@ done
 (** Induction principle analogous to trancl_induct **)
 
 lemma succ_lt_induct_lemma [rule_format]:
-     "m \<in> nat ==> P(m,succ(m)) \<longrightarrow> (\<forall>x\<in>nat. P(m,x) \<longrightarrow> P(m,succ(x))) \<longrightarrow>
-                 (\<forall>n\<in>nat. m<n \<longrightarrow> P(m,n))"
+     "m \<in> nat ==> P m (succ m) \<longrightarrow> (\<forall>x\<in>nat. P m x \<longrightarrow> P m (succ x)) \<longrightarrow>
+                 (\<forall>n\<in>nat. m<n \<longrightarrow> P m n)"
 apply (erule nat_induct)
  apply (intro impI, rule nat_induct [THEN ballI])
    prefer 4 apply (intro impI, rule nat_induct [THEN ballI])
@@ -204,9 +204,9 @@ done
 
 lemma succ_lt_induct:
     "[| m<n;  n \<in> nat;
-        P(m,succ(m));
-        !!x. [| x \<in> nat;  P(m,x) |] ==> P(m,succ(x)) |]
-     ==> P(m,n)"
+        P m (succ m);
+        !!x. [| x \<in> nat;  P m x |] ==> P m (succ x) |]
+     ==> P m n"
 by (blast intro: succ_lt_induct_lemma lt_nat_in_nat)
 
 subsection\<open>quasinat: to allow a case-split rule for @{term nat_case}\<close>
@@ -221,7 +221,7 @@ by (simp add: quasinat_def)
 lemma nat_imp_quasinat: "n \<in> nat ==> quasinat(n)"
 by (erule natE, simp_all)
 
-lemma non_nat_case: "~ quasinat(x) ==> nat_case(a,b,x) = 0"
+lemma non_nat_case: "~ quasinat(x) ==> nat_case a b x = 0"
 by (simp add: quasinat_def nat_case_def)
 
 lemma nat_cases_disj: "k=0 | (\<exists>y. k = succ(y)) | ~ quasinat(k)"
@@ -236,19 +236,19 @@ by (insert nat_cases_disj [of k], blast)
 
 (** nat_case **)
 
-lemma nat_case_0 [simp]: "nat_case(a,b,0) = a"
+lemma nat_case_0 [simp]: "nat_case a b 0 = a"
 by (simp add: nat_case_def)
 
-lemma nat_case_succ [simp]: "nat_case(a,b,succ(n)) = b(n)"
+lemma nat_case_succ [simp]: "nat_case a b (succ n) = b(n)"
 by (simp add: nat_case_def)
 
 lemma nat_case_type [TC]:
     "[| n \<in> nat;  a \<in> C(0);  !!m. m \<in> nat ==> b(m): C(succ(m)) |]
-     ==> nat_case(a,b,n) \<in> C(n)"
+     ==> nat_case a b n \<in> C(n)"
 by (erule nat_induct, auto)
 
 lemma split_nat_case:
-  "P(nat_case(a,b,k)) \<longleftrightarrow>
+  "P(nat_case a b k) \<longleftrightarrow>
    ((k=0 \<longrightarrow> P(a)) & (\<forall>x. k=succ(x) \<longrightarrow> P(b(x))) & (~ quasinat(k) \<longrightarrow> P(0)))"
 apply (rule nat_cases [of k])
 apply (auto simp add: non_nat_case)
@@ -260,13 +260,13 @@ subsection\<open>Recursion on the Natural Numbers\<close>
 (** nat_rec is used to define eclose and transrec, then becomes obsolete.
     The operator rec, from arith.thy, has fewer typing conditions **)
 
-lemma nat_rec_0: "nat_rec(0,a,b) = a"
+lemma nat_rec_0: "nat_rec 0 a b = a"
 apply (rule nat_rec_def [THEN def_wfrec, THEN trans])
  apply (rule wf_Memrel)
 apply (rule nat_case_0)
 done
 
-lemma nat_rec_succ: "m \<in> nat ==> nat_rec(succ(m),a,b) = b(m, nat_rec(m,a,b))"
+lemma nat_rec_succ: "m \<in> nat ==> nat_rec (succ m) a b = b m (nat_rec m a b)"
 apply (rule nat_rec_def [THEN def_wfrec, THEN trans])
  apply (rule wf_Memrel)
 apply (simp add: vimage_singleton_iff)

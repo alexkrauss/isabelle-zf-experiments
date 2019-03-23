@@ -11,25 +11,25 @@ subsection \<open>Quantifiers and union operator for ordinals\<close>
 definition
   (* Ordinal Quantifiers *)
   oall :: "[i, i => o] => o"  where
-    "oall(A, P) == \<forall>x. x<A \<longrightarrow> P(x)"
+    "oall A P == \<forall>x. x<A \<longrightarrow> P(x)"
 
 definition
   oex :: "[i, i => o] => o"  where
-    "oex(A, P)  == \<exists>x. x<A & P(x)"
+    "oex A P  == \<exists>x. x<A & P(x)"
 
 definition
   (* Ordinal Union *)
   OUnion :: "[i, i => i] => i"  where
-    "OUnion(i,B) == {z: \<Union>x\<in>i. B(x). Ord(i)}"
+    "OUnion i B == {z: \<Union>x\<in>i. B(x). Ord(i)}"
 
 syntax
   "_oall"     :: "[idt, i, o] => o"        ("(3\<forall>_<_./ _)" 10)
   "_oex"      :: "[idt, i, o] => o"        ("(3\<exists>_<_./ _)" 10)
   "_OUNION"   :: "[idt, i, i] => i"        ("(3\<Union>_<_./ _)" 10)
 translations
-  "\<forall>x<a. P" \<rightleftharpoons> "CONST oall(a, \<lambda>x. P)"
-  "\<exists>x<a. P" \<rightleftharpoons> "CONST oex(a, \<lambda>x. P)"
-  "\<Union>x<a. B" \<rightleftharpoons> "CONST OUnion(a, \<lambda>x. B)"
+  "\<forall>x<a. P" \<rightleftharpoons> "CONST oall a (\<lambda>x. P)"
+  "\<exists>x<a. P" \<rightleftharpoons> "CONST oex a (\<lambda>x. P)"
+  "\<Union>x<a. B" \<rightleftharpoons> "CONST OUnion a (\<lambda>x. B)"
 
 
 subsubsection \<open>simplification of the new quantifiers\<close>
@@ -127,7 +127,7 @@ by blast
 (*Congruence rule for rewriting*)
 lemma oall_cong [cong]:
     "[| a=a';  !!x. x<a' ==> P(x) <-> P'(x) |]
-     ==> oall(a, %x. P(x)) <-> oall(a', %x. P'(x))"
+     ==> oall a (%x. P(x)) <-> oall a' (%x. P'(x))"
 by (simp add: oall_def)
 
 
@@ -151,7 +151,7 @@ done
 
 lemma oex_cong [cong]:
     "[| a=a';  !!x. x<a' ==> P(x) <-> P'(x) |]
-     ==> oex(a, %x. P(x)) <-> oex(a', %x. P'(x))"
+     ==> oex a (%x. P(x)) <-> oex a' (%x. P'(x))"
 apply (simp add: oex_def cong add: conj_cong)
 done
 
@@ -185,18 +185,18 @@ subsection \<open>Quantification over a class\<close>
 
 definition
   "rall"     :: "[i=>o, i=>o] => o"  where
-    "rall(M, P) == \<forall>x. M(x) \<longrightarrow> P(x)"
+    "rall M P == \<forall>x. M(x) \<longrightarrow> P(x)"
 
 definition
   "rex"      :: "[i=>o, i=>o] => o"  where
-    "rex(M, P) == \<exists>x. M(x) & P(x)"
+    "rex M P == \<exists>x. M(x) & P(x)"
 
 syntax
   "_rall"     :: "[pttrn, i=>o, o] => o"        ("(3\<forall>_[_]./ _)" 10)
   "_rex"      :: "[pttrn, i=>o, o] => o"        ("(3\<exists>_[_]./ _)" 10)
 translations
-  "\<forall>x[M]. P" \<rightleftharpoons> "CONST rall(M, \<lambda>x. P)"
-  "\<exists>x[M]. P" \<rightleftharpoons> "CONST rex(M, \<lambda>x. P)"
+  "\<forall>x[M]. P" \<rightleftharpoons> "CONST rall M (\<lambda>x. P)"
+  "\<exists>x[M]. P" \<rightleftharpoons> "CONST rex M (\<lambda>x. P)"
 
 
 subsubsection\<open>Relativized universal quantifier\<close>
@@ -326,7 +326,7 @@ definition
   setclass :: "[i,i] => o"       ("##_" [40] 40)  where
    "setclass(A) == %x. x \<in> A"
 
-lemma setclass_iff [simp]: "setclass(A,x) <-> x \<in> A"
+lemma setclass_iff [simp]: "setclass A x <-> x \<in> A"
 by (simp add: setclass_def)
 
 lemma rall_setclass_is_ball [simp]: "(\<forall>x[##A]. P(x)) <-> (\<forall>x\<in>A. P(x))"

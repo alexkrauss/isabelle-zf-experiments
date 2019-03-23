@@ -6,4 +6,5 @@ session ZFT = Pure +
     Function
     Typing
     Tests
+    Nat_ZF
 
