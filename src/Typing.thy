@@ -48,61 +48,11 @@ text \<open>
 \<close>
 
 
-context
-  fixes A B N :: i \<comment> \<open>some sets\<close>
-  fixes f :: "i \<Rightarrow> i" \<comment> \<open>a function\<close>
-  fixes vec :: "i \<Rightarrow> i" \<comment> \<open>a type constructor\<close>
-  fixes vec_concat :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i" \<comment> \<open> Vector concatenation. First two arguments are type arguments \<close>
-begin
-
-ML \<open>
-  fun testfn ctxt t = 
-    let
-      val j = Soft_Type.judgement_of_prop t
-      val prp = Soft_Type.prop_of_judgement j
-      val _ = if (prp <> t) then error ("Not inverse" ^ (@{make_string} (prp, t))) else ();
-    in 
-      Syntax.pretty_term ctxt prp
-    end;
-
-    testfn @{context} @{term "f ::: (x : set A) \<Rightarrow> set (A + B)"};
-    testfn @{context} @{term "vec_concat ::: {n : set N} \<Rightarrow> {m : set N} \<Rightarrow> (x : set (vec n)) \<Rightarrow> (y : set (vec m)) \<Rightarrow> set (vec (n + m))"};
-  \<close>
-
-end
-
-
-ML \<open>
-  
-fun expect (x:Soft_Type.soft_type) f = if not (f x) then raise Fail ("expectation failed. Value is " ^ @{make_string} x) else ();
-
-
-(* substitute a free *)
-expect (Soft_Type.subst_bound @{term "x::i"} (Soft_Type.Set (Bound 0))) 
-   (curry op = (Soft_Type.Set @{term "x::i"}));
-
-(* substitute a bound -- no effect *)
-expect (Soft_Type.subst_bound (Bound 0) (Soft_Type.Set (Bound 0))) 
-   (curry op = (Soft_Type.Set (Bound 0)));
-
-(* loose bounds are decremented *)
-expect (Soft_Type.subst_bound @{term "0"} (Soft_Type.Set (Bound 1))) 
-   (curry op = (Soft_Type.Set (Bound 0)));
-
-(* substitute under Pi *)
-
-expect (Soft_Type.subst_bound @{term "y::i"} 
-   (Soft_Type.Pi (false, "x", @{typ i}, Soft_Type.Set (@{term "A::i"}), Soft_Type.Set (@{term "B::i=>i"} $ Bound 1)))) 
-   (curry op = (Soft_Type.Pi (false, "x", @{typ i}, Soft_Type.Set (@{term "A::i"}), Soft_Type.Set (@{term "(B::(i\<Rightarrow>i)) y"}))));
-
-\<close>
-
 axiomatization
   List :: "i \<Rightarrow> i"
 and Nil :: "i \<Rightarrow> i"
 and Cons :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
 
-declare [[show_types, show_sorts]]
 
 lemma "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"
   oops
@@ -121,7 +71,7 @@ context
   fixes x n m A B N :: "i"
   fixes f g S T :: "i \<Rightarrow> i"
   fixes plus :: "i \<Rightarrow> i \<Rightarrow> i"
-  fixes append :: "i \<Rightarrow> i \<Rightarrow> i"
+  fixes append :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
 begin
 
 
@@ -132,16 +82,14 @@ declare [[type "Pair ::: (x: set A) \<Rightarrow> (y : set B) \<Rightarrow> set 
 declare [[type "Nil ::: (A: Type) \<Rightarrow> set (List A)"]]
 declare [[type "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"]]
 declare [[type "n ::: set N"]]
-declare [[type "(First_Order_Logic.eq::i\<Rightarrow>i\<Rightarrow>o) ::: (x: set (List A)) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set B"]]
 
 
-term "First_Order_Logic.eq"
 
 ML \<open>
 
 Soft_Type_Inference.infer_type @{context} [
-  @{term "append (Cons x xs) ys = Cons x (append xs ys)"},
-  @{term "append Nil ys = ys"}
+  @{term "append A (Cons A x xs) ys = Cons A x (append A xs ys)"},
+  @{term "append A (Nil A) ys = ys"} 
 ]
 
 \<close>

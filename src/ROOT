@@ -1,11 +1,9 @@
 
 session ZFT = Pure +
-  description {*
-     Set theory with types on top.
-  *}
+  description {* Set theory with types on top. *}
   theories
     Set_Theory
     Function
     Typing
-  document_files "root.tex"
+    Tests
 
