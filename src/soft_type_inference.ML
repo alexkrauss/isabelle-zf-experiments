@@ -89,7 +89,7 @@ struct
         | NONE => fix_var_type t Gamma)
     | Const (@{const_name "First_Order_Logic.eq"}, _) =>
         fresh_variable Gamma
-        |> apfst (fn st => Soft_Type.Pi (false, "x", ZF_Logic.iT, st, Soft_Type.Pi (false, "y", ZF_Logic.iT, st, Type)))
+        |> apfst (fn st => Soft_Type.Pi (false, "x", st, Soft_Type.Pi (false, "y", st, Type)))
     | Const (n, _) => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
@@ -100,7 +100,7 @@ struct
           val (u_st, Gamma2) = collect_constraints' Gamma1 Delta u
         in
           case s_st of 
-            Soft_Type.Pi (_, _, _, sTA, sTB) =>  
+            Soft_Type.Pi (_, _, sTA, sTB) =>  
               let
                 val new_constraint = Eq (sTA, u_st) 
                     |> trace_constraint
@@ -111,7 +111,7 @@ struct
           | STVar _ =>
               let
                 val (sTB, Gamma3) = fresh_variable Gamma2
-                val new_constraint = Eq (s_st, Soft_Type.Pi (false, "x", fastype_of u, u_st, sTB))
+                val new_constraint = Eq (s_st, Soft_Type.Pi (false, "x", u_st, sTB))
                    |> trace_constraint
               in
                 (sTB, add_constraint new_constraint Gamma3)
@@ -126,7 +126,7 @@ struct
           val x_free = Free (x, T)                   (* FIXME!: Proper fresh name in context *)
           val Gamma2 = add_free (Free (x, T), stvar) Gamma1 (* assume that x has that type in the context *)
           val (body_st, Gamma3) = collect_constraints' Gamma2 Delta (Term.subst_bound (x_free, body))
-          val st = Soft_Type.Pi (false, x, T, stvar, Soft_Type.abstract_over x_free body_st)
+          val st = Soft_Type.Pi (false, x, stvar, Soft_Type.abstract_over x_free body_st)
           val Inference_Context {constraints, ...} = Gamma3
           val Inference_Context {var_types, fresh_idx, ...} = Gamma2
         in
@@ -143,7 +143,7 @@ struct
     case st of
       Set _ => false
     | Type => false
-    | Pi (_, _, _, stA, stB) => occurs_check idxn stA andalso occurs_check idxn stB
+    | Pi (_, _, stA, stB) => occurs_check idxn stA andalso occurs_check idxn stB
     | STVar v => (idxn = v)
 
 
@@ -162,7 +162,7 @@ struct
            then simplify_constraints cs type_subst term_eqs
            else simplify_constraints cs type_subst ((A, B)::term_eqs)  
        | Eq (Type, Type) => simplify_constraints cs type_subst term_eqs         
-       | Eq (Pi (_, _, _, stA, stB), Pi (_, _, _, stA', stB')) =>
+       | Eq (Pi (_, _, stA, stB), Pi (_, _, stA', stB')) =>
            simplify_constraints (Eq (stA, stA') :: Eq (stB, stB') :: cs) type_subst term_eqs
        | Eq (STVar v, st) => 
            if STVar v = st then simplify_constraints cs type_subst term_eqs (* trivial *) else

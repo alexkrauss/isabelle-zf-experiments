@@ -20,7 +20,6 @@ sig
   | Type
   | Pi of bool (* implicit *) 
           * string (* bound var name *)
-          * typ (* bound var meta type *)
           * soft_type (* left hand side type *)
           * soft_type (* right-hand side (dependent) type *)
   | STVar of indexname (* unification variable *)
@@ -55,7 +54,7 @@ val typeT = @{typ "type"};
 datatype soft_type =
   Set of term  
 | Type
-| Pi of bool * string * typ * soft_type * soft_type
+| Pi of bool * string * soft_type * soft_type
 | STVar of indexname;
 
 datatype judgement =
@@ -66,10 +65,10 @@ fun read_soft_type tm =
     Const (@{const_name "set"}, _) $ set => 
       Set set
   | Const (@{const_name "Type"}, _) => Type
-  | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, ty, B) =>
-      Pi (false, x, ty, read_soft_type A, read_soft_type B)
-  | Const (@{const_name "Implicit_Pi_type"}, _) $ A $ Abs (x, ty, B) =>
-      Pi (true, x, ty, read_soft_type A, read_soft_type B)
+  | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, _, B) =>
+      Pi (false, x, read_soft_type A, read_soft_type B)
+  | Const (@{const_name "Implicit_Pi_type"}, _) $ A $ Abs (x, _, B) =>
+      Pi (true, x, read_soft_type A, read_soft_type B)
   | Var (idxn, _) =>
       STVar idxn
   | _ => error ("Invalid soft type: " ^ Syntax.string_of_term @{context} tm);
@@ -95,8 +94,8 @@ fun encode_soft_type st =
   case st of 
     Set t => set_const $ t
   | Type => Type_const
-  | Pi (i, x, T, stA, stB) =>
-      Pi_const i T $ encode_soft_type stA $ Abs (x, T, encode_soft_type stB)
+  | Pi (i, x, stA, stB) =>
+      Pi_const i dummyT $ encode_soft_type stA $ Abs (x, dummyT, encode_soft_type stB)
   | STVar idxn => Var (idxn, typeT);
 
 fun string_of_soft_type ctxt st =
@@ -107,7 +106,7 @@ fun incr_boundvars i st =
   case st of 
     Set A => Set (Term.incr_boundvars i A)
   | Type => st
-  | Pi (b, x, ty, A, B) => Pi (b, x, ty, incr_boundvars i A, incr_boundvars i B)
+  | Pi (b, x, A, B) => Pi (b, x, incr_boundvars i A, incr_boundvars i B)
   | st as _ => st
 
 
@@ -116,9 +115,9 @@ fun prop_of_judgement (Judgement (t, tau)) =
     Set A => 
       ZF_Logic.Trueprop $ ZF_Logic.mk_mem t A
   | Type => ZF_Logic.Trueprop $ (@{term "Univ"} $ t)
-  | Pi (_, x, ty, A, B) => 
-      Logic.all_const ty $ 
-        Abs (x, ty, Logic.mk_implies (
+  | Pi (_, x, A, B) => 
+      Logic.all_const dummyT $ 
+        Abs (x, dummyT, Logic.mk_implies (
           prop_of_judgement (Judgement (Bound 0, incr_boundvars 1 A)), 
           prop_of_judgement (Judgement (Term.incr_boundvars 1 t $ Bound 0, B))))
   | STVar _ => error ("Illegal unification variable.");
@@ -131,7 +130,7 @@ fun decr_bounds t =
 fun decr_bounds_st st =
   case st of
     Set A => Set (decr_bounds A)
-  | Pi (b, x, T, A, B) => Pi (b, x, T, decr_bounds_st A, decr_bounds_st B)
+  | Pi (b, x, A, B) => Pi (b, x, decr_bounds_st A, decr_bounds_st B)
   | st as _ => st
 
 (* The inverse of prop_of_judgement. 
@@ -150,7 +149,7 @@ fun judgement_of_prop t =
           case fx of
             f $ x1 => 
               if x aconv x1 
-              then Judgement (decr_bounds f, Pi (false, v, T, decr_bounds_st A, Bx))
+              then Judgement (decr_bounds f, Pi (false, v, decr_bounds_st A, Bx))
               else error ("Bad prop: " ^ @{make_string} (fx, x, Bx))
           | _ => error "Bad prop 2"
         end
@@ -176,9 +175,9 @@ fun subst_bound arg sty =
 
     fun subst_sT lev (Set t) = Set (subst (t, lev)) 
       | subst_sT _ Type = Type
-      | subst_sT lev (Pi (imp, n, ty, sTA, sTB)) = 
-          (Pi (imp, n, ty, subst_sT lev sTA handle Same.SAME => sTA, subst_sT (lev + 1) sTB)
-           handle Same.SAME => (Pi (imp, n, ty, subst_sT lev sTA, sTB)))
+      | subst_sT lev (Pi (imp, n, sTA, sTB)) = 
+          (Pi (imp, n, subst_sT lev sTA handle Same.SAME => sTA, subst_sT (lev + 1) sTB)
+           handle Same.SAME => (Pi (imp, n, subst_sT lev sTA, sTB)))
       | subst_sT _ (STVar _) = raise Same.SAME;
     in
       subst_sT 0 sty handle Same.SAME => sty
@@ -199,12 +198,12 @@ fun abstract_over v st =
       case st of
           Set t => Set (abs lev t)
         | Type => st
-        | Pi (i, x, T, stA, stB) => 
+        | Pi (i, x, stA, stB) => 
            let 
              val stA1 = (abs_st lev stA handle Same.SAME => stA)
            in
-             Pi (i, x, T, stA1, abs_st (lev + 1) stB)
-               handle Same.SAME => Pi (i, x, T, abs_st lev stA, stB)
+             Pi (i, x, stA1, abs_st (lev + 1) stB)
+               handle Same.SAME => Pi (i, x, abs_st lev stA, stB)
            end
         | STVar _ => raise Same.SAME
 
@@ -215,7 +214,7 @@ fun subst_STVars [] st = st
   | subst_STVars inst st = 
       let
         fun subst (v as STVar xi) = the_default v (AList.lookup (op =) inst xi)
-          | subst (Pi (i, x, T, stA, stB)) = Pi (i, x, T, subst stA, subst stB)
+          | subst (Pi (i, x, stA, stB)) = Pi (i, x, subst stA, subst stB)
           | subst st = st;
       in subst st end;   
 
@@ -227,7 +226,7 @@ fun subst_STVars_recursive [] st = st
            (case AList.lookup (op =) inst xi of
               NONE => v
             | SOME u => subst_STVars_recursive inst u)
-          | subst (Pi (i, x, T, stA, stB)) = Pi (i, x, T, subst stA, subst stB)
+          | subst (Pi (i, x, stA, stB)) = Pi (i, x, subst stA, subst stB)
           | subst st = st;
       in subst st end;   
 
@@ -239,11 +238,10 @@ fun ml_print_boolean b = if b then "true" else "false";
 
 fun ml_print_soft_type (Set t) = "Soft_Type.Set " ^ ML_Syntax.atomic (ML_Syntax.print_term t)
   | ml_print_soft_type Type = "Soft_Type.Type"
-  | ml_print_soft_type (Pi (i, x, T, stA, stB)) = "Soft_Type.Pi (" ^ 
+  | ml_print_soft_type (Pi (i, x, stA, stB)) = "Soft_Type.Pi (" ^ 
       commas [
         ml_print_boolean i,
         ML_Syntax.print_string x,
-        ML_Syntax.print_typ T,
         ml_print_soft_type stA,
         ml_print_soft_type stB
       ] ^ ")"
