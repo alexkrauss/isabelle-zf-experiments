@@ -15,7 +15,9 @@ ML \<open>
     let
       val j = Soft_Type.judgement_of_prop t
       val prp = Soft_Type.prop_of_judgement j
-      val _ = if (prp <> t) then error ("Not inverse" ^ (@{make_string} (prp, t))) else ();
+      (* In the process, we lose type information, but the next step should be a fixpoint *)
+      val j2 = Soft_Type.judgement_of_prop prp
+      val _ = if (j <> j2) then error ("Not inverse" ^ (@{make_string} (prp, t))) else ();
     in 
       Syntax.pretty_term ctxt prp
     end;
@@ -50,8 +52,8 @@ expect (Soft_Type.subst_bound @{term "0"} (Soft_Type.Set (Bound 1)))
 (* substitute under Pi *)
 
 expect (Soft_Type.subst_bound @{term "y::i"} 
-   (Soft_Type.Pi (false, "x", @{typ i}, Soft_Type.Set (@{term "A::i"}), Soft_Type.Set (@{term "B::i=>i"} $ Bound 1)))) 
-   (curry op = (Soft_Type.Pi (false, "x", @{typ i}, Soft_Type.Set (@{term "A::i"}), Soft_Type.Set (@{term "(B::(i\<Rightarrow>i)) y"}))));
+   (Soft_Type.Pi (false, "x", Soft_Type.Set (@{term "A::i"}), Soft_Type.Set (@{term "B::i=>i"} $ Bound 1)))) 
+   (curry op = (Soft_Type.Pi (false, "x", Soft_Type.Set (@{term "A::i"}), Soft_Type.Set (@{term "(B::(i\<Rightarrow>i)) y"}))));
 
 \<close>
 
