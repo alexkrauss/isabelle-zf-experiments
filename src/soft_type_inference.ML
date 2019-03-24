@@ -22,14 +22,18 @@ sig
   val init_context: (term * Soft_Type.soft_type) list -> inference_context;
 
   (* computes the type of a term in a context, and collects constraints *)
-  val collect_constraints: inference_context -> term -> Soft_Type.soft_type * inference_context
+  val collect_constraints:
+        inference_context 
+        -> (Soft_Type.soft_type list) 
+        -> term 
+        -> Soft_Type.soft_type * inference_context
 
   (* removes redundant and trivial constraints *)
 val simplify_constraints: constraint list -> (indexname * Soft_Type.soft_type) list
      -> (term * term) list
      -> (indexname * Soft_Type.soft_type) list * (term * term) list
 
-val infer_type: Proof.context -> term list -> unit;
+val print_inferred_types: Proof.context -> term list -> unit;
 
 end;
 
@@ -77,7 +81,7 @@ struct
   fun trace_constraint (c as Eq (s, t)) =
     (Output.tracing ("Added constraint: " ^ @{make_string} (s, t)); c)
 
-  fun collect_constraints (Gamma : inference_context) t =
+  fun collect_constraints (Gamma : inference_context) (Delta : Soft_Type.soft_type list) t =
     case t of 
       Free _ => 
         (case get_var_type Gamma t of
@@ -92,8 +96,8 @@ struct
         | NONE => error ("Cannot resolve type of constant " ^ quote n))
     | s $ u => 
         let
-          val (s_st, Gamma1) = collect_constraints' Gamma s
-          val (u_st, Gamma2) = collect_constraints' Gamma1 u
+          val (s_st, Gamma1) = collect_constraints' Gamma Delta s
+          val (u_st, Gamma2) = collect_constraints' Gamma1 Delta u
         in
           case s_st of 
             Soft_Type.Pi (_, _, _, sTA, sTB) =>  
@@ -121,15 +125,15 @@ struct
           val (stvar, Gamma1) = fresh_variable Gamma (* invent fresh type variable *)
           val x_free = Free (x, T)                   (* FIXME!: Proper fresh name in context *)
           val Gamma2 = add_free (Free (x, T), stvar) Gamma1 (* assume that x has that type in the context *)
-          val (body_st, Gamma3) = collect_constraints' Gamma2 (Term.subst_bound (x_free, body))
+          val (body_st, Gamma3) = collect_constraints' Gamma2 Delta (Term.subst_bound (x_free, body))
           val st = Soft_Type.Pi (false, x, T, stvar, Soft_Type.abstract_over x_free body_st)
           val Inference_Context {constraints, ...} = Gamma3
           val Inference_Context {var_types, fresh_idx, ...} = Gamma2
         in
           (st, Inference_Context {var_types=var_types, fresh_idx=fresh_idx, constraints=constraints})
         end
-   and collect_constraints' Gamma t =
-      collect_constraints Gamma t
+   and collect_constraints' Gamma Delta t =
+      collect_constraints Gamma Delta t
       |> tap (fn (sT, _) => Output.tracing (cat_lines [
             "### " ^ @{make_string} t,
             "--> " ^ @{make_string} sT]))
@@ -171,6 +175,16 @@ struct
        | Eq _ => error ("Unsatisfiable: " ^ @{make_string} c)
 
 
+datatype infer_result =
+  Infer_Result of {
+    term_types: Soft_Type.soft_type list,
+    variable_types: (term * Soft_Type.soft_type) list,
+    constraints: (term * term) list
+  }
+
+
+
+
 fun infer_type ctxt ts = 
   let
     val var_types = Soft_Type_Context.Ctxt.get (Context.Proof ctxt);
@@ -180,7 +194,7 @@ fun infer_type ctxt ts =
         fresh_idx = 0
       }
     val (sTs, Inference_Context {constraints, var_types, ...}) =
-       fold_map (fn t => fn c => collect_constraints' c t) ts ictxt
+       fold_map (fn t => fn c => collect_constraints' c [] t) ts ictxt
     fun pretty_styp st = Syntax.string_of_term ctxt (Soft_Type.encode_soft_type st)
     val _ = constraints
             |> map (fn Eq (s, t) => "(" ^ pretty_styp s ^ ", " ^ pretty_styp t ^ ")")
@@ -196,8 +210,31 @@ fun infer_type ctxt ts =
       |> map (fn f => 
           (Free f, 
            Termtab.lookup var_types (Free f) |> the |> Soft_Type.subst_STVars_recursive subst))
+  in
+    Infer_Result {
+      term_types = instantiated,
+      variable_types = types_for_frees,
+      constraints = eqs
+    }
+  end 
 
-    val _ = Output.tracing (@{make_string} (instantiated, eqs, types_for_frees))
+fun print_inferred_types ctxt ts = 
+  let
+    val Infer_Result {term_types, variable_types,constraints } = infer_type ctxt ts
+
+    fun section header content = header :: map (prefix "  ") content
+
+    val pr_st = Soft_Type.string_of_soft_type ctxt
+    val pr_term = Syntax.string_of_term ctxt
+
+    val _ = Output.writeln (cat_lines ("--- Inference result ---" ::
+      flat [
+        section "Types of terms" (map pr_st term_types),
+        section "Variable types" (map (fn (v, st) => pr_term v ^ ": " ^ pr_st st) variable_types),
+        section "Constraints" (map (fn (s, t) => pr_term s ^ " = " ^ pr_term t) constraints)
+      ]))
+
   in () end 
+
 
 end

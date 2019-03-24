@@ -32,6 +32,8 @@ sig
   val read_soft_type: term -> soft_type
   val read_judgement: term -> judgement
   val encode_soft_type: soft_type -> term
+
+  val string_of_soft_type: Proof.context -> soft_type -> string
  
   (* the semantic proposition associated with a typing judgement *)
   val prop_of_judgement: judgement -> term
@@ -97,6 +99,9 @@ fun encode_soft_type st =
       Pi_const i T $ encode_soft_type stA $ Abs (x, T, encode_soft_type stB)
   | STVar idxn => Var (idxn, typeT);
 
+fun string_of_soft_type ctxt st =
+  encode_soft_type st
+  |> Syntax.string_of_term ctxt
 
 fun incr_boundvars i st =
   case st of 
