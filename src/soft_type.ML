@@ -141,7 +141,7 @@ Equivalent forms, such as hhf normal form are not converted correctly.
 fun judgement_of_prop t =
   case t of
     Const (@{const_name "Pure.all"}, _) $ 
-      Abs (v, T, Const (@{const_name "Pure.imp"}, _) $ u $ s) =>
+      Abs (v, _, Const (@{const_name "Pure.imp"}, _) $ u $ s) =>
         let
           val Judgement (x, A) = judgement_of_prop u
           val Judgement (fx, Bx) = judgement_of_prop s

@@ -118,19 +118,15 @@ struct
               end
           | _ => error ("bad soft_type at application head: " ^ quote (@{make_string} s_st))
         end
-    | Bound _ => error "illegal bound variable"
+    | Bound i => (nth Delta i, Gamma)
     | Var _ => error "illegal Var"
-    | Abs (x, T, body) => 
+    | Abs (x, _, body) => 
         let 
           val (stvar, Gamma1) = fresh_variable Gamma (* invent fresh type variable *)
-          val x_free = Free (x, T)                   (* FIXME!: Proper fresh name in context *)
-          val Gamma2 = add_free (Free (x, T), stvar) Gamma1 (* assume that x has that type in the context *)
-          val (body_st, Gamma3) = collect_constraints' Gamma2 Delta (Term.subst_bound (x_free, body))
-          val st = Soft_Type.Pi (false, x, stvar, Soft_Type.abstract_over x_free body_st)
-          val Inference_Context {constraints, ...} = Gamma3
-          val Inference_Context {var_types, fresh_idx, ...} = Gamma2
+          val (body_st, Gamma3) = collect_constraints' Gamma1 (stvar :: Delta) body
+          val st = Soft_Type.Pi (false, x, stvar, body_st)
         in
-          (st, Inference_Context {var_types=var_types, fresh_idx=fresh_idx, constraints=constraints})
+          (st, Gamma3)
         end
    and collect_constraints' Gamma Delta t =
       collect_constraints Gamma Delta t
