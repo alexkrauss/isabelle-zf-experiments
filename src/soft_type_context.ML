@@ -27,8 +27,9 @@ struct
 
   fun add_typing propstr ctxt =
     let
-      val prop = Syntax.read_prop (Context.proof_of ctxt) propstr
-      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_prop1 prop
+      val pctxt = Context.proof_of ctxt
+      val prop = Syntax.read_prop pctxt propstr
+      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_prop pctxt prop
     in 
       put x T ctxt
     end; 

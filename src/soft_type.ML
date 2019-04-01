@@ -28,7 +28,6 @@ sig
  
   (* the semantic proposition associated with a typing judgement *)
   val prop_of_judgement: judgement -> term
-  val judgement_of_prop1: term -> judgement
   val judgement_of_prop: Proof.context -> term -> judgement
   val judgement_of_schematic_prop: Proof.context -> term -> judgement
 
@@ -135,7 +134,8 @@ fun is_composite t = case t of
  | _ => false
 
 
-fun judgement_of_prop ctxt t =
+fun judgement_of_prop ctxt local_types t =
+  (Output.tracing ("judgement_of_prop: " ^ Syntax.string_of_term ctxt t);
   case t of
     Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "mem"}, _) $ x $ A) =>
        Judgement (x, set_const $ A)
@@ -145,13 +145,11 @@ fun judgement_of_prop ctxt t =
        Judgement (x, o_const)
   | _ => if is_composite t then
       let
-        val _ = Output.writeln "Got implication"
         val (ctxt', _, assms, concl) = dest_hhf ctxt t
-        val type_assms = map (judgement_of_prop ctxt') assms
+        val type_assms = map (judgement_of_prop ctxt' local_types) assms
         val local_type_context = map (fn Judgement (t, st) => (t, st)) type_assms
-        val Judgement (f_xs, st) = judgement_of_prop ctxt' concl
+        val Judgement (f_xs, st) = judgement_of_prop ctxt' local_types concl
         val (f, xs) = Term.strip_comb f_xs (* assume for now that the number of variables matches *)
-        val _ = if length xs <> length assms then error "Illegal number of variables" else ()
 
         fun get_var_type v = case AList.lookup (op aconv) local_type_context v of
           SOME st => st
@@ -164,13 +162,13 @@ fun judgement_of_prop ctxt t =
       in
         Judgement (f, fun_type)
       end
-      else error ("Cannot analyze typing proposition: " ^ @{make_string} t)
+      else error ("Cannot analyze typing proposition: " ^ @{make_string} t))
 
 
 fun judgement_of_schematic_prop ctxt p =
   let
     val ([p_fixed], ctxt') = Variable.import_terms true [p] ctxt
-    val Judgement (t, st) = judgement_of_prop ctxt p_fixed
+    val Judgement (t, st) = judgement_of_prop ctxt [] p_fixed
     val [t_exported, st_exported] = Variable.export_terms ctxt' ctxt [t, st]
   in
     Judgement (t_exported, st_exported)
