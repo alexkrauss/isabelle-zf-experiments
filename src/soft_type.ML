@@ -14,35 +14,23 @@ signature SOFT_TYPE =
 sig
   val typeT: typ
 
-  (* Locally nameless ML representation of soft types. *)
-  datatype soft_type =
-    Set of term (* May contain Bound occurrences from Pi binding. *)
-  | Type
-  | Pi of bool (* implicit *) 
-          * string (* bound var name *)
-          * soft_type (* left hand side type *)
-          * soft_type (* right-hand side (dependent) type *)
-  | STVar of indexname (* unification variable *)
+  (* Constants for the term representation *)
+  val set_const: term
+  val Type_const: term
+  val Pi_const: bool -> typ -> term 
 
   datatype judgement =
-    Judgement of term * soft_type
+    Judgement of term * term
 
-  (* convert from and to term representation *)
-  val read_soft_type: term -> soft_type
+  (* convert from representation *)
   val read_judgement: term -> judgement
-  val encode_soft_type: soft_type -> term
-
-  val string_of_soft_type: Proof.context -> soft_type -> string
+  val mk_judgement: judgement -> term
  
   (* the semantic proposition associated with a typing judgement *)
   val prop_of_judgement: judgement -> term
-  val judgement_of_prop: term -> judgement
-
-  (* cf. analogous operations that we already have on terms ( Term.* ) *)
-  val subst_bound: term -> soft_type -> soft_type
-  val abstract_over: term -> soft_type -> soft_type
-  val subst_STVars: (indexname * soft_type) list -> soft_type -> soft_type
-  val subst_STVars_recursive: (indexname * soft_type) list -> soft_type -> soft_type
+  val judgement_of_prop1: term -> judgement
+  val judgement_of_prop: Proof.context -> term -> judgement
+  val judgement_of_schematic_prop: Proof.context -> term -> judgement
 
 end;
 
@@ -51,32 +39,16 @@ struct
 
 val typeT = @{typ "type"};
 
-datatype soft_type =
-  Set of term  
-| Type
-| Pi of bool * string * soft_type * soft_type
-| STVar of indexname;
-
 datatype judgement =
-  Judgement of term * soft_type;
-
-fun read_soft_type tm =
-  case tm of 
-    Const (@{const_name "set"}, _) $ set => 
-      Set set
-  | Const (@{const_name "Type"}, _) => Type
-  | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, _, B) =>
-      Pi (false, x, read_soft_type A, read_soft_type B)
-  | Const (@{const_name "Implicit_Pi_type"}, _) $ A $ Abs (x, _, B) =>
-      Pi (true, x, read_soft_type A, read_soft_type B)
-  | Var (idxn, _) =>
-      STVar idxn
-  | _ => error ("Invalid soft type: " ^ Syntax.string_of_term @{context} tm);
+  Judgement of term * term;
 
 fun read_judgement tm = 
   case tm of 
-    Const (@{const_name "has_type"}, _) $ t $ ty => Judgement (t, read_soft_type ty)
+    Const (@{const_name "has_type"}, _) $ t $ ty => Judgement (t, ty)
   | _ => error ("Invalid judgement: " ^ Syntax.string_of_term @{context} tm);
+
+fun mk_judgement (Judgement (t, ty)) =
+  Const (@{const_name "has_type"}, fastype_of t --> typeT --> @{typ prop}) $ t $ ty
 
 fun is_judgement tm = 
   case tm of 
@@ -86,177 +58,130 @@ fun is_judgement tm =
 
 val set_const = @{term "set"};
 val Type_const = @{term "Type"}
+val o_const = @{term "o"}
 fun Pi_const i T = 
   Const (if i then @{const_name "Implicit_Pi_type"} else @{const_name "Pi_type"},
     typeT --> (T --> typeT) --> typeT);
 
-fun encode_soft_type st =
-  case st of 
-    Set t => set_const $ t
-  | Type => Type_const
-  | Pi (i, x, stA, stB) =>
-      Pi_const i dummyT $ encode_soft_type stA $ Abs (x, dummyT, encode_soft_type stB)
-  | STVar idxn => Var (idxn, typeT);
-
-fun string_of_soft_type ctxt st =
-  encode_soft_type st
-  |> Syntax.string_of_term ctxt
-
-fun incr_boundvars i st =
-  case st of 
-    Set A => Set (Term.incr_boundvars i A)
-  | Type => st
-  | Pi (b, x, A, B) => Pi (b, x, incr_boundvars i A, incr_boundvars i B)
-  | st as _ => st
-
-
 fun prop_of_judgement (Judgement (t, tau)) = 
   case tau of 
-    Set A => 
+    Const (@{const_name "Typing.set"}, _) $ A => 
       ZF_Logic.Trueprop $ ZF_Logic.mk_mem t A
-  | Type => ZF_Logic.Trueprop $ (@{term "Univ"} $ t)
-  | Pi (_, x, A, B) => 
-      Logic.all_const dummyT $ 
-        Abs (x, dummyT, Logic.mk_implies (
-          prop_of_judgement (Judgement (Bound 0, incr_boundvars 1 A)), 
+  | Const (@{const_name Type}, _) => ZF_Logic.Trueprop $ (@{term "Univ"} $ t)
+  | Const (@{const_name o}, _) => ZF_Logic.Trueprop $ (@{term "o_pred"} $ t)
+  | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, T, B) => 
+      Logic.all_const T $ 
+        Abs (x, T, Logic.mk_implies (
+          prop_of_judgement (Judgement (Bound 0, Term.incr_boundvars 1 A)), 
           prop_of_judgement (Judgement (Term.incr_boundvars 1 t $ Bound 0, B))))
-  | STVar _ => error ("Illegal unification variable.");
+  | _ => error ("Illegal soft type: " ^ @{make_string} tau);
 
 
 fun decr_bounds t = 
   if (Term.is_dependent t) then error "is_dependent" 
   else Term.subst_bound (Bound 0, t)
 
-fun decr_bounds_st st =
-  case st of
-    Set A => Set (decr_bounds A)
-  | Pi (b, x, A, B) => Pi (b, x, decr_bounds_st A, decr_bounds_st B)
-  | st as _ => st
+
+
 
 (* The inverse of prop_of_judgement. 
 
 This function requires its input to be precisely in the form produced by prop_of_judgement.
 Equivalent forms, such as hhf normal form are not converted correctly.
 *)
-fun judgement_of_prop t =
+fun judgement_of_prop1 t =
   case t of
     Const (@{const_name "Pure.all"}, _) $ 
-      Abs (v, _, Const (@{const_name "Pure.imp"}, _) $ u $ s) =>
+      Abs (v, T, Const (@{const_name "Pure.imp"}, _) $ u $ s) =>
         let
-          val Judgement (x, A) = judgement_of_prop u
-          val Judgement (fx, Bx) = judgement_of_prop s
+          val Judgement (x, A) = judgement_of_prop1 u
+          val Judgement (fx, Bx) = judgement_of_prop1 s
         in 
           case fx of
             f $ x1 => 
               if x aconv x1 
-              then Judgement (decr_bounds f, Pi (false, v, decr_bounds_st A, Bx))
+              then Judgement (decr_bounds f, Pi_const false T $ decr_bounds A $ Abs (v, T, Bx))
               else error ("Bad prop: " ^ @{make_string} (fx, x, Bx))
           | _ => error "Bad prop 2"
         end
   | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "mem"}, _) $ x $ A) =>
-       Judgement (x, Set A)
+       Judgement (x, set_const $ A)
   | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "Univ"}, _) $ x) =>
-       Judgement (x, Type)
+       Judgement (x, Type_const)
+  | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "o_pred"}, _) $ x) =>
+       Judgement (x, o_const)
 
 
 
-fun subst_bound arg sty =
-  let 
-    (* stolen from Term.subst_bound *)
-    fun subst (Bound i, lev) =
-          if i < lev then raise Same.SAME   (*var is locally bound*)
-          else if i = lev then Term.incr_boundvars lev arg
-          else Bound (i - 1)   (*loose: change it*)
-      | subst (Abs (a, T, body), lev) = Abs (a, T, subst (body, lev + 1))
-      | subst (f $ t, lev) =
-          (subst (f, lev) $ (subst (t, lev) handle Same.SAME => t)
-            handle Same.SAME => f $ subst (t, lev))
-      | subst _ = raise Same.SAME;
 
-    fun subst_sT lev (Set t) = Set (subst (t, lev)) 
-      | subst_sT _ Type = Type
-      | subst_sT lev (Pi (imp, n, sTA, sTB)) = 
-          (Pi (imp, n, subst_sT lev sTA handle Same.SAME => sTA, subst_sT (lev + 1) sTB)
-           handle Same.SAME => (Pi (imp, n, subst_sT lev sTA, sTB)))
-      | subst_sT _ (STVar _) = raise Same.SAME;
-    in
-      subst_sT 0 sty handle Same.SAME => sty
-    end;
 
-fun abstract_over v st =
+
+(* decomposes a hhf-style proposition in its components, i.e.
+  - newly fixed variables
+  - assumptions
+  - a conclusion
+*)
+fun dest_hhf ctxt t =
   let
-    fun abs lev tm =
-      if v aconv tm then Bound lev
-      else
-        (case tm of
-          Abs (a, T, t) => Abs (a, T, abs (lev + 1) t)
-        | t $ u =>
-            (abs lev t $ (abs lev u handle Same.SAME => u)
-              handle Same.SAME => t $ abs lev u)
-        | _ => raise Same.SAME);
-    fun abs_st lev st =
-      case st of
-          Set t => Set (abs lev t)
-        | Type => st
-        | Pi (i, x, stA, stB) => 
-           let 
-             val stA1 = (abs_st lev stA handle Same.SAME => stA)
-           in
-             Pi (i, x, stA1, abs_st (lev + 1) stB)
-               handle Same.SAME => Pi (i, x, abs_st lev stA, stB)
-           end
-        | STVar _ => raise Same.SAME
-
-  in abs_st 0 st handle Same.SAME => st end;
+    val ((params, imp), ctxt') = Variable.focus NONE t ctxt
+  in
+    (ctxt', map #2 params, Logic.strip_imp_prems imp, Logic.strip_imp_concl imp)
+  end
 
 
-fun subst_STVars [] st = st
-  | subst_STVars inst st = 
+fun is_composite t = case t of
+   Const (@{const_name "Pure.imp"}, _) $ _ $ _ => true
+ | Const (@{const_name "Pure.all"}, _) $ _ => true
+ | _ => false
+
+
+fun judgement_of_prop ctxt t =
+  case t of
+    Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "mem"}, _) $ x $ A) =>
+       Judgement (x, set_const $ A)
+  | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "Univ"}, _) $ x) =>
+       Judgement (x, Type_const)
+  | Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "o_pred"}, _) $ x) =>
+       Judgement (x, o_const)
+  | _ => if is_composite t then
       let
-        fun subst (v as STVar xi) = the_default v (AList.lookup (op =) inst xi)
-          | subst (Pi (i, x, stA, stB)) = Pi (i, x, subst stA, subst stB)
-          | subst st = st;
-      in subst st end;   
+        val _ = Output.writeln "Got implication"
+        val (ctxt', _, assms, concl) = dest_hhf ctxt t
+        val type_assms = map (judgement_of_prop ctxt') assms
+        val local_type_context = map (fn Judgement (t, st) => (t, st)) type_assms
+        val Judgement (f_xs, st) = judgement_of_prop ctxt' concl
+        val (f, xs) = Term.strip_comb f_xs (* assume for now that the number of variables matches *)
+        val _ = if length xs <> length assms then error "Illegal number of variables" else ()
+
+        fun get_var_type v = case AList.lookup (op aconv) local_type_context v of
+          SOME st => st
+          | NONE => error ("Cannot find type of variable: " ^ @{make_string} v)
+
+        fun mk_Pi_type x tau =
+          Pi_const false (fastype_of x) $ get_var_type x $ lambda x tau
+
+        val fun_type = fold_rev mk_Pi_type xs st
+      in
+        Judgement (f, fun_type)
+      end
+      else error ("Cannot analyze typing proposition: " ^ @{make_string} t)
 
 
-fun subst_STVars_recursive [] st = st
-  | subst_STVars_recursive inst st = 
-      let
-        fun subst (v as STVar xi) = 
-           (case AList.lookup (op =) inst xi of
-              NONE => v
-            | SOME u => subst_STVars_recursive inst u)
-          | subst (Pi (i, x, stA, stB)) = Pi (i, x, subst stA, subst stB)
-          | subst st = st;
-      in subst st end;   
-
-
-
-(* Antiquotation: Soft types as ML values *)
-
-fun ml_print_boolean b = if b then "true" else "false";
-
-fun ml_print_soft_type (Set t) = "Soft_Type.Set " ^ ML_Syntax.atomic (ML_Syntax.print_term t)
-  | ml_print_soft_type Type = "Soft_Type.Type"
-  | ml_print_soft_type (Pi (i, x, stA, stB)) = "Soft_Type.Pi (" ^ 
-      commas [
-        ml_print_boolean i,
-        ML_Syntax.print_string x,
-        ml_print_soft_type stA,
-        ml_print_soft_type stB
-      ] ^ ")"
-  | ml_print_soft_type (STVar idxn) = "Soft_Type.STVar " ^ ML_Syntax.print_indexname idxn;
-  
-
-val _ = Theory.setup (ML_Antiquotation.inline @{binding soft_type} 
-  (Args.term >> (ML_Syntax.atomic o ml_print_soft_type o read_soft_type)));
-
+fun judgement_of_schematic_prop ctxt p =
+  let
+    val ([p_fixed], ctxt') = Variable.import_terms true [p] ctxt
+    val Judgement (t, st) = judgement_of_prop ctxt p_fixed
+    val [t_exported, st_exported] = Variable.export_terms ctxt' ctxt [t, st]
+  in
+    Judgement (t_exported, st_exported)
+  end
 
 
 (* Input check phase that replaces a typing judgement by the corresponding proposition.
    Thus, typing judgements can be used to state properties. *)
 fun replace_judgement ctxt t = 
-  if is_judgement t then prop_of_judgement (read_judgement t)
+  if is_judgement t 
+  then prop_of_judgement (read_judgement t)
   else case t of
     s $ u => replace_judgement ctxt s $ replace_judgement ctxt u
   | Abs (x, T, b) => Abs (x, T, replace_judgement ctxt b)

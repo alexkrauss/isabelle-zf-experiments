@@ -14,7 +14,7 @@ struct
 
   (* Context data. Maps terms to soft types. *)
   structure Ctxt = Generic_Data(
-    type T = Soft_Type.soft_type Termtab.table;
+    type T = term Termtab.table;
     val empty = Termtab.empty;
     val extend = I;
     val merge = Termtab.merge (op =);
@@ -28,7 +28,7 @@ struct
   fun add_typing propstr ctxt =
     let
       val prop = Syntax.read_prop (Context.proof_of ctxt) propstr
-      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_prop prop
+      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_prop1 prop
     in 
       put x T ctxt
     end; 
