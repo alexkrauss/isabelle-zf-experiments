@@ -29,7 +29,7 @@ struct
     let
       val pctxt = Context.proof_of ctxt
       val prop = Syntax.read_prop pctxt propstr
-      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_prop pctxt prop
+      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_schematic_prop pctxt prop
     in 
       put x T ctxt
     end; 

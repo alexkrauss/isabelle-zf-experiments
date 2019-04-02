@@ -27,8 +27,7 @@ sig
   val mk_judgement: judgement -> term
  
   (* the semantic proposition associated with a typing judgement *)
-  val prop_of_judgement: judgement -> term
-  val judgement_of_prop: Proof.context -> term -> judgement
+  val prop_of_judgement: Proof.context -> judgement -> term
   val judgement_of_schematic_prop: Proof.context -> term -> judgement
 
 end;
@@ -62,18 +61,20 @@ fun Pi_const i T =
   Const (if i then @{const_name "Implicit_Pi_type"} else @{const_name "Pi_type"},
     typeT --> (T --> typeT) --> typeT);
 
-fun prop_of_judgement (Judgement (t, tau)) = 
+fun prop_of_judgement ctxt (Judgement (t, tau)) = 
   case tau of 
     Const (@{const_name "Typing.set"}, _) $ A => 
       ZF_Logic.Trueprop $ ZF_Logic.mk_mem t A
   | Const (@{const_name Type}, _) => ZF_Logic.Trueprop $ (@{term "Univ"} $ t)
   | Const (@{const_name o}, _) => ZF_Logic.Trueprop $ (@{term "o_pred"} $ t)
-  | Const (@{const_name "Pi_type"}, _) $ A $ Abs (x, T, B) => 
+  | Const (const_name, _) $ A $ Abs (x, T, B) => 
+      if member (op =) [@{const_name Pi_type}, @{const_name Implicit_Pi_type}] const_name then
       Logic.all_const T $ 
         Abs (x, T, Logic.mk_implies (
-          prop_of_judgement (Judgement (Bound 0, Term.incr_boundvars 1 A)), 
-          prop_of_judgement (Judgement (Term.incr_boundvars 1 t $ Bound 0, B))))
-  | _ => error ("Illegal soft type: " ^ @{make_string} tau);
+          prop_of_judgement ctxt (Judgement (Bound 0, Term.incr_boundvars 1 A)), 
+          prop_of_judgement ctxt (Judgement (Term.incr_boundvars 1 t $ Bound 0, B))))
+      else error ("Illegal soft type: " ^ Syntax.string_of_term ctxt tau)
+  | _ => error ("Illegal soft type: " ^ Syntax.string_of_term ctxt tau);
 
 
 fun decr_bounds t = 
@@ -135,7 +136,10 @@ fun is_composite t = case t of
 
 
 fun judgement_of_prop ctxt local_types t =
-  (Output.tracing ("judgement_of_prop: " ^ Syntax.string_of_term ctxt t);
+  (Output.tracing (cat_lines (
+     "judgement_of_prop: " ^ Syntax.string_of_term ctxt t ::
+     map (fn (x, t) => "   " ^ @{make_string} x ^ " ::: " ^ Syntax.string_of_term ctxt t) local_types)
+  );
   case t of
     Const (@{const_name "Trueprop"}, _) $ (Const (@{const_name "mem"}, _) $ x $ A) =>
        Judgement (x, set_const $ A)
@@ -147,8 +151,8 @@ fun judgement_of_prop ctxt local_types t =
       let
         val (ctxt', _, assms, concl) = dest_hhf ctxt t
         val type_assms = map (judgement_of_prop ctxt' local_types) assms
-        val local_type_context = map (fn Judgement (t, st) => (t, st)) type_assms
-        val Judgement (f_xs, st) = judgement_of_prop ctxt' local_types concl
+        val local_type_context = map (fn Judgement (t, st) => (t, st)) type_assms @ local_types
+        val Judgement (f_xs, st) = judgement_of_prop ctxt' local_type_context concl
         val (f, xs) = Term.strip_comb f_xs (* assume for now that the number of variables matches *)
 
         fun get_var_type v = case AList.lookup (op aconv) local_type_context v of
@@ -179,7 +183,7 @@ fun judgement_of_schematic_prop ctxt p =
    Thus, typing judgements can be used to state properties. *)
 fun replace_judgement ctxt t = 
   if is_judgement t 
-  then prop_of_judgement (read_judgement t)
+  then prop_of_judgement ctxt (read_judgement t)
   else case t of
     s $ u => replace_judgement ctxt s $ replace_judgement ctxt u
   | Abs (x, T, b) => Abs (x, T, replace_judgement ctxt b)
