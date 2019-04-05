@@ -42,7 +42,7 @@ definition o_pred :: "o \<Rightarrow> o"
   where "o_pred x \<longleftrightarrow> True"
              
 ML_file "soft_type.ML"
-
+    
 term "Nil ::: (A: Type) \<Rightarrow> set (List A)"
 
 
@@ -80,9 +80,6 @@ and append :: "i \<Rightarrow> i \<Rightarrow> i \<Rightarrow> i"
 declare [[type "Nil ::: (A: Type) \<Rightarrow> set (List A)"]]
 declare [[type "Cons ::: (A: Type) \<Rightarrow> (x: set A) \<Rightarrow> (xs : set (List A)) \<Rightarrow> set (List A)"]]
 
-context
-  fixes A :: "i"
-begin
 
 
 ML \<open>Soft_Type_Inference.print_inferred_types @{context} [
@@ -119,7 +116,6 @@ Soft_Type_Inference.print_inferred_types @{context} [
 *)
 
 
-end
 
 text \<open> Example: Inferring types for vectors of given length \<close>
 
@@ -138,12 +134,9 @@ declare [[type "0 ::: set nat"]]
 declare [[type "vappend ::: (A: Type) \<Rightarrow> (n: set nat) \<Rightarrow> (m: set nat) \<Rightarrow> (xs: set (Vec A n)) 
 \<Rightarrow> (ys: set (Vec A m)) \<Rightarrow> set (Vec A (add n m))"]]
 
-(*
 
-ML \<open> Soft_Type_Inference.print_inferred_types @{context} [
-  @{term "vappend A (succ n) m (VCons A n x xs) ys
-   = VCons A (add n m) x (vappend A n m xs ys)"}  
-]\<close>
+
+(*
 
 ML \<open> Soft_Type_Inference.print_inferred_types @{context} [
   @{term "vappend A (succ n) m (VCons A n x xs) ys
