@@ -21,16 +21,8 @@ sig
 
   val init_context: (term * term) list -> inference_context;
 
-  (* computes the type of a term in a context, and collects constraints *)
-  val collect_constraints:
-        Proof.context
-        -> inference_context 
-        -> (string * term * typ) list
-        -> term 
-        -> term * inference_context
 
-
-val print_inferred_types: Proof.context -> term list -> unit;
+  val print_inferred_types: Proof.context -> term list -> unit;
 
 end;
 
@@ -111,36 +103,40 @@ struct
       else Output.tracing ("Constraint " ^ pr s ^ " === " ^ pr t)
     end
 
-  fun collect_constraints ctxt (Gamma : inference_context) (Delta : (string * term * typ) list) t : (term * inference_context) =
+  fun collect_constraints ctxt
+    (Gamma : inference_context)
+    (Delta : (string * term * typ) list)
+    (t : term)
+    (expected_type : term option) 
+    : (term * inference_context) =
     case t of 
       Free (_, T) => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
-        | NONE => fix_var_type t T Gamma []) (* Free variable types have no dependencies: Delta = [] *)
+        | NONE => 
+            (case expected_type of 
+               SOME exp => (exp, add_free (t, exp) Gamma)
+             | NONE => fix_var_type t T Gamma []) (* Free variable types have no dependencies: Delta = [] *)
+        )
     | Const (n, _) => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
         | NONE => error ("Cannot resolve type of constant " ^ quote n))
     | s $ u => 
-        let
-          (* Infer the types for subterms *)
-          val (s_st, Gamma1) = collect_constraints' ctxt Gamma Delta s
-          val (u_st, Gamma2) = collect_constraints' ctxt Gamma1 Delta u
-        in
-          case s_st of
-            Const (@{const_name "Pi_type"}, _) $ A $ Abs (_, _, B) =>
-              let
-                val new_constraint = Eq (u_st, A)
-                  |> abstract_constraint Delta
-                  |> tap (trace_constraint ctxt)
-                val application_type = Term.subst_bound (u, B)
-              in
-                (application_type, add_constraint new_constraint Gamma2)
-              end
-          | _ => error ("Bad soft type for application head: " ^ Syntax.string_of_term ctxt s 
-                        ^ " ::: " ^ Syntax.string_of_term ctxt s_st)
-          end
-    | Bound i => (#2 (nth Delta i), Gamma)
+        (case collect_constraints' ctxt Gamma Delta s NONE of
+          (Const (@{const_name "Pi_type"}, _) $ A $ Abs (_, _, B), Gamma1) =>
+            let
+              val (u_st, Gamma2) = collect_constraints' ctxt Gamma1 Delta u (SOME A)
+              val new_constraint = Eq (u_st, A)
+                |> abstract_constraint Delta
+                |> tap (trace_constraint ctxt)
+              val application_type = Term.subst_bound (u, B)
+            in
+              (application_type, add_constraint new_constraint Gamma2)
+            end
+        | (s_st, _) => error ("Bad soft type for application head: " ^ Syntax.string_of_term ctxt s 
+                      ^ " ::: " ^ Syntax.string_of_term ctxt s_st))
+| Bound i => (#2 (nth Delta i), Gamma)
     | Var _ => error "illegal Var"
     | Abs (x, T, body) => 
         let 
@@ -154,20 +150,20 @@ struct
 
           (* Infer type of the body *)
           val (body_st, Gamma3) =
-            collect_constraints' ctxt Gamma2 Delta' body
+            collect_constraints' ctxt Gamma2 Delta' body NONE
           (* Build a function type *)
           val st = Soft_Type.Pi_const T bodyT $ stvar $ Abs (x, T, body_st)
         in
           (st, Gamma3)
         end
-   and collect_constraints' ctxt Gamma Delta t =
+   and collect_constraints' ctxt Gamma Delta t expected_type =
      let 
        val _ = Output.tracing (cat_lines [
          "collect_constraints:",
          "  \<Delta> = " ^ @{make_string} Delta,
          "  t = " ^ Syntax.string_of_term ctxt t])
      in
-      collect_constraints ctxt Gamma Delta t
+      collect_constraints ctxt Gamma Delta t expected_type
       |> tap (fn (sT, _) => Output.tracing (cat_lines [
             "### " ^ Syntax.string_of_term ctxt t,
             "--> " ^ Syntax.string_of_term ctxt sT]))
@@ -196,7 +192,7 @@ fun infer_type ctxt ts =
         fresh_idx = 0
       }
     val (sTs, Inference_Context {constraints, var_types, fresh_idx}) =
-       fold_map (fn t => fn c => collect_constraints' ctxt c [] t) ts ictxt
+       fold_map (fn t => fn c => collect_constraints' ctxt c [] t NONE) ts ictxt
     val _ = map (trace_constraint ctxt) constraints
 
     val env = simplify_constraints ctxt constraints fresh_idx

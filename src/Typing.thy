@@ -127,6 +127,7 @@ context
 begin
 
 
+
 ML \<open>Soft_Type_Inference.print_inferred_types @{context} [
   @{term "Nil A = B"}
 ]\<close>
@@ -186,7 +187,7 @@ begin
 
 
 
-(*
+
 
 
 ML \<open> Soft_Type_Inference.print_inferred_types @{context} [
@@ -194,7 +195,7 @@ ML \<open> Soft_Type_Inference.print_inferred_types @{context} [
    = VCons A (add n m) x (vappend A n m xs ys)"}
 ]\<close>
 
-*)
+
 
 end
 
