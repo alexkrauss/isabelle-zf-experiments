@@ -188,13 +188,13 @@ begin
 
 
 
-
+(*
 
 ML \<open> Soft_Type_Inference.print_inferred_types @{context} [
   @{term "vappend A (succ n) m (VCons A n x xs) ys
    = VCons A (add n m) x (vappend A n m xs ys)"}
 ]\<close>
-
+*)
 
 
 end
