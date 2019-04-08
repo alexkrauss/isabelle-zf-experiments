@@ -6,7 +6,6 @@ Context information regarding soft types.
 Allows the declaration of soft types for symbols, which are then available for type checking.
 Symbols are either free variables (declared in the context) or constants.
 
-Also introduces a command typing, which can add an (atomic) typing judgement to the context.
 *)
 
 structure Soft_Type_Context =
@@ -14,10 +13,10 @@ struct
 
   (* Context data. Maps terms to soft types. *)
   structure Ctxt = Generic_Data(
-    type T = term Termtab.table;
+    type T = thm Termtab.table;
     val empty = Termtab.empty;
     val extend = I;
-    val merge = Termtab.merge (op =);
+    val merge = Termtab.merge Thm.eq_thm_prop;
   );
 
   (* Canonical get and put operations *)
@@ -25,18 +24,23 @@ struct
   fun get ctxt t = Termtab.lookup (Ctxt.get ctxt) t;
 
 
-  fun add_typing propstr ctxt =
+  (* Break a typing judgment into its term and type parts *)
+  fun dest_typing tm =
+      case tm of
+        Const (@{const_name has_type}, _) $ t $ T => (t, T)
+      | _ => Exn.error "dest_typing: not a typing judgment"
+
+
+  fun add_typing thm ctxt =
     let
-      val pctxt = Context.proof_of ctxt
-      val prop = Syntax.read_prop pctxt propstr
-      val Soft_Type.Judgement (x, T) = Soft_Type.judgement_of_schematic_prop pctxt prop
+      val (x, _) = dest_typing (Thm.prop_of thm)
     in 
-      put x T ctxt
+      put x thm ctxt
     end; 
 
 
-  val _ = Theory.setup (Attrib.setup @{binding type} (Scan.lift Parse.prop >>
-    (fn propstr => Thm.declaration_attribute (K (add_typing propstr)))) "define a soft type")
+  val _ = Theory.setup (Attrib.setup @{binding type}
+    (Scan.succeed (Thm.declaration_attribute add_typing)) "define a soft type")
 
 
 end

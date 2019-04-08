@@ -37,9 +37,7 @@ end;
 structure Soft_Type_Inference : SOFT_TYPE_INFERENCE =
 struct
 
-  open Soft_Type
-
-  datatype constraint =
+ datatype constraint =
     Eq of term * term
 
   datatype inference_context = Inference_Context of {
@@ -77,9 +75,9 @@ struct
   fun fresh_idx (Inference_Context {fresh_idx, ...}) =
     fresh_idx
 
-  fun fresh_variable Gamma Delta =
+  fun fresh_variable T Gamma Delta =
     let
-      val var_type = context_types Delta ---> Soft_Type.typeT
+      val var_type = context_types Delta ---> Soft_Type.typeT T
     in
       (Term.list_comb (Var (("UU", fresh_idx Gamma), var_type), 
         map Bound ((length Delta) -1 downto 0)),
@@ -89,9 +87,9 @@ struct
   fun add_free (v, st) (Inference_Context {var_types, constraints, fresh_idx}) =
     Inference_Context {var_types=Termtab.update_new (v, st) var_types, constraints=constraints, fresh_idx=fresh_idx};
 
-  fun fix_var_type v Gamma Delta =
+  fun fix_var_type v T Gamma Delta =
     let
-      val (stv, Gamma1) = fresh_variable Gamma Delta
+      val (stv, Gamma1) = fresh_variable T Gamma Delta
     in
       (stv, add_free (v, stv) Gamma1)
     end
@@ -115,21 +113,10 @@ struct
 
   fun collect_constraints ctxt (Gamma : inference_context) (Delta : (string * term * typ) list) t : (term * inference_context) =
     case t of 
-      Free _ => 
+      Free (_, T) => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
-        | NONE => fix_var_type t Gamma []) (* Free variable types have no dependencies: Delta = [] *)
-    | Const (@{const_name "First_Order_Logic.eq"}, eqT) =>
-        let 
-          val (st, Gamma1) = fresh_variable Gamma Delta
-          val argT = domain_type eqT 
-          val result = 
-            Pi_const false argT $ st $ Abs ("x", argT,
-              Pi_const false argT $ st $ Abs ("y", argT,
-                Type_const))
-          in 
-            (result, Gamma1)
-          end
+        | NONE => fix_var_type t T Gamma []) (* Free variable types have no dependencies: Delta = [] *)
     | Const (n, _) => 
         (case get_var_type Gamma t of
           SOME st => (st, Gamma)
@@ -158,13 +145,18 @@ struct
     | Abs (x, T, body) => 
         let 
           (* Invent variable for the domain *)
-          val (stvar, Gamma2) = fresh_variable Gamma Delta
+          val (stvar, Gamma2) = fresh_variable T Gamma Delta
+
+          (* Inner context *)
+          val Delta' = incr_bounds ((x, stvar, T) :: Delta)
+
+          val bodyT = Term.fastype_of1 (map #3 Delta', body)
+
           (* Infer type of the body *)
           val (body_st, Gamma3) =
-            collect_constraints' ctxt Gamma2 
-              (incr_bounds ((x, stvar, T) :: Delta)) body
+            collect_constraints' ctxt Gamma2 Delta' body
           (* Build a function type *)
-          val st = Soft_Type.Pi_const false T $ stvar $ Abs (x, T, body_st)
+          val st = Soft_Type.Pi_const T bodyT $ stvar $ Abs (x, T, body_st)
         in
           (st, Gamma3)
         end
@@ -195,7 +187,9 @@ fun simplify_constraints ctxt constraints maxidx =
 
 fun infer_type ctxt ts = 
   let
-    val var_types = Soft_Type_Context.Ctxt.get (Context.Proof ctxt);
+    val var_types = Soft_Type_Context.Ctxt.get (Context.Proof ctxt)
+      |> Termtab.map (K (#2 o Soft_Type_Context.dest_typing o Thm.prop_of))
+
     val ictxt = Inference_Context {
         var_types = var_types,
         constraints = [],
