@@ -9,4 +9,4 @@ jobs:
 
       - run:
           name: Isabelle Test
-          command: isabelle version
+          command: Isabelle/bin/isabelle version
