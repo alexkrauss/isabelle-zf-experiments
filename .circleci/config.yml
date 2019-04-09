@@ -8,14 +8,5 @@ jobs:
       - checkout
 
       - run:
-          name: Isabelle Test
-          command: ~/Isabelle/bin/isabelle version
-
-      - run:
-          name: Isabelle Test 2
-          command: pwd
-
-      - run:
-          name: Isabelle Test 3
-          command: ls -l
-          
+          name: Isabelle Build
+          command: ~/Isabelle/bin/isabelle build -D .
