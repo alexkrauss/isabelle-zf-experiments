@@ -9,4 +9,4 @@ jobs:
 
       - run:
           name: Isabelle Build
-          command: ~/Isabelle/bin/isabelle build -D .
+          command: ~/Isabelle/bin/isabelle build -D src
