@@ -1,9 +1,0 @@
-language: c    # to avoid cluttering the build with ruby material
-
-before_install:
-  - wget https://isabelle.in.tum.de/dist/Isabelle2018_app.tar.gz
-  - tar -xzf Isabelle2018_app.tar.gz
-  - export PATH=./Isabelle2018/bin:$PATH
-  
-script:
-  - isabelle build -D src

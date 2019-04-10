@@ -1,6 +1,6 @@
 # isabelle-zf-experiments
 
-[![Build Status](https://travis-ci.org/alexkrauss/isabelle-zf-experiments.svg?branch=master)](https://travis-ci.org/alexkrauss/isabelle-zf-experiments)
+[![CircleCI](https://circleci.com/gh/alexkrauss/isabelle-zf-experiments.svg?style=svg)](https://circleci.com/gh/alexkrauss/isabelle-zf-experiments)
 
 This repository contains an experimental clone of (some parts of) Isabelle/ZF, originally developed by Larry Paulson.
 
