@@ -48,8 +48,12 @@ struct
   fun get_var_type (Inference_Context {var_types, ...}) (v : term) =
     Termtab.lookup var_types v;
   
-  fun add_constraint (c : constraint) (Inference_Context {var_types, constraints, fresh_idx}) =
-    Inference_Context {var_types=var_types, constraints = c :: constraints, fresh_idx=fresh_idx};
+  fun add_constraint (c as Eq (lhs, rhs)) (Gamma as Inference_Context {var_types, constraints, fresh_idx}) =
+    if lhs aconv rhs (* Skip trivial constraints *)
+    then Gamma
+    else Inference_Context {var_types=var_types,
+           constraints = insert (op =) c constraints,
+           fresh_idx=fresh_idx};
   
 
   type preproc_context = 
