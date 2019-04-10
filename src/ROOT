@@ -2,9 +2,6 @@
 session ZFT = Pure +
   description {* Set theory with types on top. *}
   theories
-    Set_Theory
-    Function
-    Typing
+    ZF_Typing_Examples
     Tests
-    Nat_ZF
 
